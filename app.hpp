@@ -15,4 +15,7 @@ private:
 
    PO m_po;
    Option& m_help;
+   Option& m_force;
+   Option& m_inputDir;
+   Option& m_outputDir;
 };
