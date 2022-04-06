@@ -10,11 +10,14 @@ App::App(int argc, char* argv[]) :
    m_inputDir(m_po.add("input_dir").setAliasChr('i').setValueName("dir").setDescription("Directory where project that you want install is located")),
    m_outputDir(m_po.add("output_dir").setAliasChr('o').setValueName("dir").setDescription("Directory where your project will install")),
    m_help(m_po.add("help").setAliasChr('?').setDescription("Show this help list and exit")) {
+   if(argc == 1)
+      showHelp();
+   
    try {
       m_po.parse(argc, argv);
    } catch(const std::runtime_error& e) {
       std::cerr << "[x] " << e.what() << "\n"
-                << "    Try '" << PROJECT_NAME << " --help' or '" << PROJECT_NAME << " -?' for more information" << std::endl;
+                << "    Try '" << PROJECT_NAME << " --help' or '" << PROJECT_NAME << " -?' instead for more information" << std::endl;
    }
 }
 
@@ -32,7 +35,7 @@ void App::showHelp() {
              << "Usage: " << PROJECT_NAME << " [Options]\n\n"
              << "OPTIONS:\n"
              << m_po
-             << "NOTE:\n"
+             << "HOW WORKS:\n"
              << "  '" << PROJECT_NAME << "' will follow the <input_dir> structure for copy files to <output_dir>, e.g: \n"
              << "  - my_input_dir\n"
                 "  |\n"
