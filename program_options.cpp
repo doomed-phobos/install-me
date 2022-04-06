@@ -152,17 +152,16 @@ std::string PO::valueOf(const Option& opt) const {
 std::ostream& operator<<(std::ostream& out, const ProgramOptions& po) {
    size_t max_width = 0;
    for(const auto& opt : po.options()) {
-      max_width = std::max(6 + opt->name().size() + 1 +
-         (opt->doesRequiresValue() ? opt->valueName().size() + 1 : 0), max_width);
+      max_width = std::max(6 + 2 + opt->name().size() +
+         (opt->doesRequiresValue() ? 2 + opt->valueName().size() + 1 : 0), max_width);
    }
 
    for(const auto& opt : po.options()) {
-      size_t opt_width = 6 + opt->valueName().size() + 1 +
-         (opt->doesRequiresValue() ? opt->valueName().size() + 1 : 0);
+      size_t opt_width = 6 + 2 + opt->name().size() +
+         (opt->doesRequiresValue() ? 2 + opt->valueName().size() + 1 : 0);
 
       if(opt->aliasChr() != EOF) {
          out << std::setw(3) << "-" << opt->aliasChr() << ", ";
-         opt_width -= 6;
       } else {
          out << std::setw(6) << " ";
       }
@@ -171,12 +170,13 @@ std::ostream& operator<<(std::ostream& out, const ProgramOptions& po) {
 
       if(opt->doesRequiresValue()) {
          out << "=<" << opt->valueName() << ">";
-         opt_width += 2 + opt->valueName().size();
       }
       
       if(!opt->description().empty()) {
-         out << std::setw(max_width - opt_width + 1) << " " << opt->description();
+         out << std::setw(max_width - opt_width + 12/*offset*/) << " " << opt->description();
       }
+
+      out << std::endl;
    }
 
    return out;
