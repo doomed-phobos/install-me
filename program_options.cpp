@@ -173,7 +173,19 @@ std::ostream& operator<<(std::ostream& out, const ProgramOptions& po) {
       }
       
       if(!opt->description().empty()) {
-         out << std::setw(max_width - opt_width + 12/*offset*/) << " " << opt->description();
+         bool isMultiline = opt->description().find('\n') != std::string::npos;
+
+         if(!isMultiline) {
+            out << std::setw(max_width - opt_width + 12/*offset*/) << " " << opt->description();
+         } else {
+            std::istringstream ss(opt->description());
+            std::string line;
+            if(std::getline(ss, line)) {
+               out << std::setw(max_width - opt_width + 12/*offset*/) << " " << line << "\n";
+               while(std::getline(ss, line))
+                  out << std::setw(max_width + 12/*offset*/) << " " << line << "\n";
+            }
+         }
       }
 
       out << std::endl;
