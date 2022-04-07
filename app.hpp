@@ -1,21 +1,14 @@
 #pragma once
-#include "program_options.hpp"
+#include <memory>
 
-typedef ProgramOptions PO;
-typedef PO::Option Option;
-typedef PO::Value Value;
+class AppCliCommands;
 
 class App {
 public:
    App(int argc, char* argv[]);
+   ~App();
 
-   int run();
+   bool run();
 private:
-   void showHelp();
-
-   PO m_po;
-   Option& m_help;
-   Option& m_force;
-   Option& m_inputDir;
-   Option& m_outputDir;
+   std::unique_ptr<AppCliCommands> m_acc;
 };
