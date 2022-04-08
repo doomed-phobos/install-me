@@ -7,7 +7,8 @@ public:
       kNone            = 0,
       kIncludeAllFiles = 1 << 0,
       kForce           = 1 << 1,
-      kRecursive       = 1 << 2
+      kRecursive       = 1 << 2,
+      kVerbose         = 1 << 3
    };
 
    AppFlags();
