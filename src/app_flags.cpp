@@ -1,4 +1,4 @@
-#include "app_flags.hpp"
+#include "src/app_flags.hpp"
 
 AppFlags::AppFlags() :
    m_flags(0) {}

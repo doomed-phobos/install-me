@@ -1,8 +1,8 @@
-#include "app_cli_commands.hpp"
+#include "src/app_cli_commands.hpp"
 
-#include "generate_macros.hpp"
-#include "output.hpp"
-#include "string.hpp"
+#include "src/generate_macros.hpp"
+#include "src/output.hpp"
+#include "src/string.hpp"
 
 #include <stdexcept>
 

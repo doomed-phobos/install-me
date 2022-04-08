@@ -1,8 +1,8 @@
-#include "app.hpp"
+#include "src/app.hpp"
 
-#include "app_cli_commands.hpp"
-#include "fs.hpp"
-#include "output.hpp"
+#include "src/app_cli_commands.hpp"
+#include "src/fs.hpp"
+#include "src/output.hpp"
 
 class App::Output {
 public:

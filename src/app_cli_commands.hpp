@@ -1,6 +1,6 @@
 #pragma once
-#include "program_options.hpp"
-#include "app_flags.hpp"
+#include "src/program_options.hpp"
+#include "src/app_flags.hpp"
 
 typedef ProgramOptions PO;
 typedef PO::Option Option;

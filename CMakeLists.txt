@@ -6,14 +6,5 @@ set(CMAKE_CXX_STANDARD 17)
 project(install-me VERSION 0.1.0)
 
 set(VERSION ${PROJECT_VERSION})
-configure_file(generate_macros.hpp.in generate_macros.hpp)
 
-add_executable(${PROJECT_NAME}
-   main.cpp
-   program_options.cpp
-   app.cpp
-   app_flags.cpp
-   app_cli_commands.cpp
-   fs.cpp
-   string.cpp)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+add_subdirectory(src)
