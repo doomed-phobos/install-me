@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.0.0)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 17)
-find_package(fmt REQUIRED)
 
 project(install-me VERSION 0.1.0)
 
@@ -14,6 +13,7 @@ add_executable(${PROJECT_NAME}
    program_options.cpp
    app.cpp
    app_flags.cpp
-   app_cli_commands.cpp)
-target_link_libraries(${PROJECT_NAME} fmt::fmt)
+   app_cli_commands.cpp
+   fs.cpp
+   string.cpp)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})

@@ -11,13 +11,15 @@ public:
    AppCliCommands(int argc, char* argv[]);
 
    const AppFlags& flags() const;
-   bool isSuccess() const;
+   std::string inputDir() const;
+   std::string outputDir() const;
 private:
    void showHelp();
    void parseFlags();
-   void fail();
+   void checkRequiredOptions();
 
    PO m_po;
+   Option& m_verbose;
    Option& m_includeAllFiles;
    Option& m_recursive;
    Option& m_help;
@@ -25,5 +27,4 @@ private:
    Option& m_inputDir;
    Option& m_outputDir;
    AppFlags m_flags;
-   bool m_success;
 };

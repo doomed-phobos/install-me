@@ -19,20 +19,17 @@ public:
       Option& setDescription(const std::string& description);
       Option& setValueName(const std::string& valueName);
       Option& setAliasChr(char aliasChr);
-      Option& setRequired(bool required);
 
       const std::string& description() const;
       const std::string& valueName() const;
       const std::string& name() const;
       char aliasChr() const;
       bool doesRequiresValue() const;
-      bool isRequired() const;
    private:
       std::string m_name;
       std::string m_valueName;
       std::string m_description;
       char m_aliasChr;
-      bool m_required;
    };
 
    class Value {

@@ -1,27 +1,27 @@
 #include "program_options.hpp"
+#include "string.hpp"
 
 #include <algorithm>
 #include <iomanip>
-#include <fmt/format.h>
 
 typedef ProgramOptions PO;
 
 class MissingValueOption : public ParseException {
 public:
    MissingValueOption(const std::string& optName, const std::string& optValueName) :
-      ParseException(fmt::format("Missing value in '--{}=<{}>'", optName, optValueName)) {}
+      ParseException(utils::fmt_to_str("Missing value in '--%s=<%s>'", optName.c_str(), optValueName.c_str())) {}
 };
 
-class MissingAliasOption : public ParseException {
+class MisingAliasValueOption : public ParseException {
 public:
-   MissingAliasOption(char aliasChr, const std::string& optValueName) :
-      ParseException(fmt::format("Missing alias in '-{} <{}>'", aliasChr, optValueName)) {}
+   MisingAliasValueOption(char aliasChr, const std::string& optValueName) :
+      ParseException(utils::fmt_to_str("Missing value in '-%c <%s>'", aliasChr, optValueName.c_str())) {}
 };
 
 class InvalidArgument : public ParseException {
 public:
    InvalidArgument(const std::string& arg) :
-      ParseException(fmt::format("WTF, what is '{}'?", arg)) {}
+      ParseException(utils::fmt_to_str("WTF, what is '%s'?", arg.c_str())) {}
 };
 
 PO::Option::Option(const std::string& name) :
@@ -31,14 +31,12 @@ PO::Option::Option(const std::string& name) :
 PO::Option& PO::Option::setDescription(const std::string& description) {m_description = description; return *this;}
 PO::Option& PO::Option::setValueName(const std::string& valueName) {m_valueName = valueName; return *this;}
 PO::Option& PO::Option::setAliasChr(char aliasChr) {m_aliasChr = aliasChr; return *this;}
-PO::Option& PO::Option::setRequired(bool required) {m_required = required; return *this;}
 
 const std::string& PO::Option::description() const {return m_description;}
 const std::string& PO::Option::valueName() const {return m_valueName;}
 const std::string& PO::Option::name() const {return m_name;}
 char PO::Option::aliasChr() const {return m_aliasChr;}
 bool PO::Option::doesRequiresValue() const {return !m_valueName.empty();}
-bool PO::Option::isRequired() const {return m_required;}
 
 PO::Value::Value(const Option* opt, const std::string& value) :
    m_option(opt),
@@ -109,7 +107,7 @@ void PO::parse(int argc, char* argv[]) {
             Option* opt = *it;
             if(opt->doesRequiresValue()) {
                if(i+1 >= argc)
-                  throw MissingAliasOption(opt->aliasChr(), opt->valueName());
+                  throw MisingAliasValueOption(opt->aliasChr(), opt->valueName());
 
                optValue = argv[++i];
             }
@@ -122,9 +120,6 @@ void PO::parse(int argc, char* argv[]) {
 
       if(optName.empty())
          throw InvalidArgument(arg);
-      
-      // TODO: Create a system that check if that required options is added
-      // TODO: Maybe change actual system???
    }
 }
 

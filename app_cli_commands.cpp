@@ -1,12 +1,19 @@
 #include "app_cli_commands.hpp"
 
 #include "generate_macros.hpp"
+#include "output.hpp"
+#include "string.hpp"
 
 #include <stdexcept>
-#include <iostream>
+
+class AppCliInitException : public std::runtime_error {
+public:
+   AppCliInitException(const std::string& msg) :
+      std::runtime_error(msg) {}
+};
 
 AppCliCommands::AppCliCommands(int argc, char* argv[]) :
-   m_success(true),
+   m_verbose(m_po.add("verbose").setAliasChr('v').setDescription("Show what is going on.")),
    m_includeAllFiles(m_po.add("include-all-files").setAliasChr('a').setDescription("Includes 'first layer' files (see HOW IT WORKS below).")),
    m_force(m_po.add("force").setAliasChr('f').setDescription("Create missing directories.")),
    m_inputDir(m_po.add("input_dir").setAliasChr('i').setValueName("dir").setDescription("Directory where project that you want install is located.")),
@@ -23,15 +30,21 @@ AppCliCommands::AppCliCommands(int argc, char* argv[]) :
       
       if(m_po.enabled(m_help))
          showHelp();
+      
+      checkRequiredOptions();
    } catch(const ParseException& e) {
-      std::cerr << "[x] " << e.what() << "\n"
-                << "    Try '" << PROJECT_NAME << " --help' or '" << PROJECT_NAME << " -?' instead for more information" << std::endl;
-      fail();
+      out::error(utils::fmt_to_str("%s\n"
+                                   "Try '%s --help' or '%s -?' instead for mode information\n", e.what(), PROJECT_NAME, PROJECT_NAME));
+      exit(1);
+   } catch(const AppCliInitException& e) {
+      out::error(e.what());
+      exit(1);
    }
 }
 
-bool AppCliCommands::isSuccess() const {return m_success;}
 const AppFlags& AppCliCommands::flags() const {return m_flags;}
+std::string AppCliCommands::inputDir() const {return m_po.valueOf(m_inputDir);}
+std::string AppCliCommands::outputDir() const {return m_po.valueOf(m_outputDir);}
 
 void AppCliCommands::showHelp() {
    std::cout << PROJECT_NAME << " " << VERSION << " by phobos\n\n"
@@ -145,17 +158,24 @@ void AppCliCommands::showHelp() {
                 "     --- something else (1).txt   --- something else (1).txt \n";
    std::cout << "\n";
 
-   fail();
+   exit(1);
 }
 
 void AppCliCommands::parseFlags() {
    if(m_po.enabled(m_recursive))
       m_flags.addFlags(AppFlags::kRecursive);
-
    if(m_po.enabled(m_force))
       m_flags.addFlags(AppFlags::kForce);
    if(m_po.enabled(m_includeAllFiles))
       m_flags.addFlags(AppFlags::kIncludeAllFiles);
+   if(m_po.enabled(m_verbose))
+      m_flags.addFlags(AppFlags::kVerbose);
 }
 
-void AppCliCommands::fail() {m_success = false;}
+void AppCliCommands::checkRequiredOptions() {
+   if(!m_po.enabled(m_inputDir))
+      throw AppCliInitException("'" + m_inputDir.name() + "' option is required");
+
+   if(!m_po.enabled(m_outputDir))
+      throw AppCliInitException("'" + m_outputDir.name() + "' option is required");
+}
