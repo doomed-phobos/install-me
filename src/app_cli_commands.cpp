@@ -18,7 +18,7 @@ AppCliCommands::AppCliCommands(int argc, char* argv[]) :
    m_force(m_po.add("force").setAliasChr('f').setDescription("Create missing directories.")),
    m_inputDir(m_po.add("input_dir").setAliasChr('i').setValueName("dir").setDescription("Directory where project that you want install is located.")),
    m_outputDir(m_po.add("output_dir").setAliasChr('o').setValueName("dir").setDescription("Directory where your project will install.")),
-   m_help(m_po.add("help").setAliasChr('?').setDescription("Show this help list and exit.")),
+   m_help(m_po.add("help").setAliasChr('h').setDescription("Show this help list and exit.")),
    m_recursive(m_po.add("recursive").setAliasChr('r').setDescription("Copy recursive files from found directories in <input_dir> to <output_dir>.\n"
                                                                      "Without 'recursive mode', it will just copy the 'first layer' (see HOW IT WORKS below).")) {
    if(argc == 1)
