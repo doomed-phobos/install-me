@@ -1,8 +1,11 @@
 #include "src/app.hpp"
 
 #include "src/app_cli_commands.hpp"
-#include "src/fs.hpp"
 #include "src/output.hpp"
+
+#include <filesystem>
+
+namespace fs = std::filesystem;
 
 class App::Output {
 public:
@@ -32,22 +35,35 @@ App::App(int argc, char* argv[]) :
 
 App::~App() {}
 
-bool App::run() {
-   std::string inputDir = utils::get_canonical_path(m_acc->inputDir());
-   std::string outputDir = utils::get_canonical_path(m_acc->outputDir());
-   if(!utils::is_directory(inputDir)) {
-      out::error("Directory '" + inputDir + "' is not a directory");
-      return false;
-   }
-   if(!utils::is_directory(outputDir)) {
-      out::error("Directory '" + outputDir + "' is not a directory");
-      return false;
-   }
+void App::run() {
+   std::error_code e;
+   auto inputPath = fs::canonical(m_acc->inputDir(), e);
+   if(e)
+      throw AppException("Input directory: " + e.message());
+   auto outputPath = fs::canonical(m_acc->outputDir(), e);
+   if(e)
+      throw AppException("Output directory: " + e.message());
 
-   m_out->say("----------------------------------------");
-   m_out->say("Input directory: " + inputDir);
-   m_out->say("Output directory: " + outputDir);
-   m_out->say("----------------------------------------");
+   m_out->say("-----------------------------------------------");
+   m_out->say("Input: " + inputPath.string());
+   m_out->say("Output: " + outputPath.string());
+   m_out->say("-----------------------------------------------");
 
-   return true;
+   const AppFlags& flags = m_acc->flags();
+   for(const auto& file0 : fs::directory_iterator(inputPath)) {
+      if(file0.is_directory()) {
+         auto it1 = fs::recursive_directory_iterator(file0.path());
+
+         for(const auto& file1 : it1) {
+            if(file1.is_directory()) {
+               if(!flags.hasFlags(AppFlags::kRecursive))
+                  it1.disable_recursion_pending();
+            } else {
+               // Copying to output
+            }
+         }
+      } else if(flags.hasFlags(AppFlags::kIncludeAllFiles)) {
+         // Copying to output
+      }
+   }
 }
