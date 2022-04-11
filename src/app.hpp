@@ -1,6 +1,7 @@
 #pragma once
 #include <memory>
 #include <stdexcept>
+#include <filesystem>
 
 class AppCliCommands;
 
@@ -21,7 +22,7 @@ private:
    class VerboseOutput;
    class NullOutput;
 
-   void copy_to(const std::string& from, const std::string& to, bool force);
+   void copy_to(const std::filesystem::path& from, const std::filesystem::path& to, bool force) const;
 
    std::unique_ptr<AppCliCommands> m_acc;
    std::unique_ptr<Output> m_out;
