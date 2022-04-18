@@ -2,37 +2,38 @@
 #include <iostream>
 #include <iomanip>
 
-namespace out {
-   namespace priv {
-      /// Support multiline
-      static void puts_with_sign(std::ostream& out, char sign, const std::string& msg) {
-         if(sign == EOF || msg.empty())
-            return;
+namespace app {
+   class Output {
+   public:
+      ~Output() {puts("~Output");}
+   
+      static Output* Instance();
 
-         bool multiline = msg.find('\n') != std::string::npos;
-         if(!multiline) {
-            out << "[" << sign << "] " << msg << std::endl;
-         } else {
-            std::istringstream ss(msg);
-            std::string line;
-            if(std::getline(ss, line)) {
-               out << "[" << sign << "] " << line << std::endl;
-               while(std::getline(ss, line))
-                  out << "    " << line << std::endl;
-            }
-         }
-      }
-   }
+      virtual void info(const std::string& msg) = 0;
+      virtual void warning(const std::string& msg) = 0;
+      virtual void error(const std::string& msg) = 0;
+   private:
+      friend class App;
 
-   inline void info(const std::string& msg) {
-      priv::puts_with_sign(std::cout, '*', msg);
-   }
+      static void SetInstance(Output* instance);
+   };
 
-   inline void warning(const std::string& msg) {
-      priv::puts_with_sign(std::cerr, '!', msg);
-   }
+   /// Only error msg
+   class DefaultOutput : public Output {
+   public:
+      virtual void info(const std::string& msg) override;
+      virtual void warning(const std::string& msg) override;
+      virtual void error(const std::string& msg) override;
+   };
 
-   inline void error(const std::string& msg) {
-      priv::puts_with_sign(std::cerr, 'x', msg + "\nAborting...");
-   }
-} // namespace out
+   class VerboseOutput : public DefaultOutput {
+   public:
+      virtual void info(const std::string& msg) override;
+      virtual void warning(const std::string& msg) override;
+      virtual void error(const std::string& msg) override;
+   };
+} // namespace app::out
+
+#define INFO(msg) app::Output::Instance()->info(msg)
+#define WARNING(msg) app::Output::Instance()->warning(msg)
+#define ERROR(msg) app::Output::Instance()->error(msg)
