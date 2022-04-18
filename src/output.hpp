@@ -5,8 +5,6 @@
 namespace app {
    class Output {
    public:
-      ~Output() {puts("~Output");}
-   
       static Output* Instance();
 
       virtual void info(const std::string& msg) = 0;
