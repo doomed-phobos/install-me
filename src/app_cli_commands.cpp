@@ -3,6 +3,7 @@
 #include "src/generate_macros.hpp"
 #include "src/output.hpp"
 #include "src/string.hpp"
+#include "src/cache_manager.hpp"
 
 namespace app {
    class MissingRequiredOption : public std::runtime_error {
@@ -28,7 +29,7 @@ namespace app {
       if(!res)
          return res.movetoExpectedT<std::tuple<AppFlags, std::string, std::string>>();
 
-      if(argc == 1 || m_po.enabled(m_help)) {
+      if(argc == 1 || (argc == 2 && m_po.enabled(m_help))) {
          showHelp();
 
          return std::runtime_error("");
@@ -156,29 +157,6 @@ namespace app {
                   "     --- something else (1).txt   --- something else (1).txt \n";
       std::cout << "\n";
    }
-   /*std::tuple<AppFlags, std::string, std::string> AppCliCommands::parse(int argc, char* argv[]) {
-      if(argc == 1)
-         showHelp();
-
-      try {
-         m_po.parse(argc, argv);
-         parseFlags();
-         
-         if(m_po.enabled(m_help))
-            showHelp();
-         
-         checkRequiredOptions();
-      } catch(const ParseException& e) {
-         ERROR(utils::fmt_to_str("%s\n"
-                                    "Try '%s --help' or '%s -?' instead for mode information\n", e.what(), PROJECT_NAME, PROJECT_NAME));
-         exit(1);
-      } catch(const AppCliInitException& e) {
-         ERROR(e.what());
-         exit(1);
-      }
-
-      return {parseFlags(), m_po.valueOf(m_inputDir), m_po.valueOf(m_outputDir)};
-   }*/
 
    AppFlags AppCliCommands::parseFlags() {
       AppFlags flags;

@@ -2,12 +2,15 @@
 #include "src/program_options.hpp"
 #include "src/app_flags.hpp"
 
+#include <memory>
 #include <tuple>
 
 namespace app {
    typedef ProgramOptions PO;
    typedef PO::Option Option;
    typedef PO::Value Value;
+
+   class CacheManager;
 
    /// Manages CLI Commands
    class AppCliCommands {
