@@ -5,9 +5,11 @@
 #include "src/output.hpp"
 
 namespace app {
-   App::App(int argc, char* argv[]) : 
-      m_acc(new AppCliCommands()) {
-      
+   App::App(int argc, char* argv[]) {
+      if(auto res = CacheManager::Initialize(); !res)
+         res.get();
+
+      m_acc.reset(new AppCliCommands());
       std::tie(m_flags, m_inputDir, m_outputDir) = m_acc->parse(argc, argv).get();
 
       if(m_flags.hasFlags(AppFlags::kVerbose))
