@@ -22,13 +22,14 @@ namespace app {
       virtual void info(const std::string& msg) override;
       virtual void warning(const std::string& msg) override;
       virtual void error(const std::string& msg) override;
+   protected:
+      static void puts_with_sign(std::ostream& out, char sign, const std::string& msg);
    };
 
    class VerboseOutput : public DefaultOutput {
    public:
       virtual void info(const std::string& msg) override;
       virtual void warning(const std::string& msg) override;
-      virtual void error(const std::string& msg) override;
    };
 } // namespace app::out
 

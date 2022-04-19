@@ -6,7 +6,16 @@
 namespace app {
    static std::shared_ptr<Output> g_instance(new DefaultOutput());
 
-    static void puts_with_sign(std::ostream& out, char sign, const std::string& msg) {
+   Output* Output::Instance() {
+      return g_instance.get();
+   }
+
+   void Output::SetInstance(Output* instance) {
+      assert(instance);
+      g_instance.reset(instance);
+   }
+
+   void DefaultOutput::puts_with_sign(std::ostream& out, char sign, const std::string& msg) {
       if(sign == EOF || msg.empty())
          return;
 
@@ -24,19 +33,12 @@ namespace app {
       }
    }
 
-   Output* Output::Instance() {
-      return g_instance.get();
-   }
-
-   void Output::SetInstance(Output* instance) {
-      assert(instance);
-      g_instance.reset(instance);
-   }
-
    void DefaultOutput::info(const std::string& msg) {}
+   void DefaultOutput::debug(const std::string& msg) {}
    void DefaultOutput::warning(const std::string& msg) {}
    void DefaultOutput::error(const std::string& msg) {
-      puts_with_sign(std::cerr, 'x', msg + "\nAborting...");
+      if(!msg.empty())
+         puts_with_sign(std::cerr, 'x', msg + "\nAborting...");
    }
 
    void VerboseOutput::info(const std::string& msg) {
@@ -45,9 +47,5 @@ namespace app {
 
    void VerboseOutput::warning(const std::string& msg) {
       puts_with_sign(std::cerr, '!', msg);
-   }
-
-   void VerboseOutput::error(const std::string& msg) {
-      DefaultOutput::error(msg);
    }
 } // namespace app
