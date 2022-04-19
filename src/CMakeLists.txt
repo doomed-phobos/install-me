@@ -6,6 +6,8 @@ add_executable(${PROJECT_NAME}
    app.cpp
    app_flags.cpp
    app_cli_commands.cpp
+   cache_manager.cpp
+   output.cpp
    string.cpp)
 target_include_directories(${PROJECT_NAME}
    PRIVATE
