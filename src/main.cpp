@@ -2,12 +2,12 @@
 #include "src/output.hpp"
 
 int main(int argc, char* argv[]) {
-   App app(argc, argv);
-
    try {
+      app::App app(argc, argv);
       app.run();
-   } catch(const AppException& e) {
-      out::error(e.what());
+   } catch(const std::runtime_error& e) {
+      ERROR(e.what());
+      return 1;
    }
 
    return 0;
