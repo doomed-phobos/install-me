@@ -34,7 +34,6 @@ namespace app {
    }
 
    void DefaultOutput::info(const std::string& msg) {}
-   void DefaultOutput::debug(const std::string& msg) {}
    void DefaultOutput::warning(const std::string& msg) {}
    void DefaultOutput::error(const std::string& msg) {
       if(!msg.empty())
