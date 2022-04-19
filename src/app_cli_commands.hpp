@@ -2,29 +2,31 @@
 #include "src/program_options.hpp"
 #include "src/app_flags.hpp"
 
-typedef ProgramOptions PO;
-typedef PO::Option Option;
-typedef PO::Value Value;
+#include <tuple>
 
-class AppCliCommands {
-public:
-   AppCliCommands(int argc, char* argv[]);
+namespace app {
+   typedef ProgramOptions PO;
+   typedef PO::Option Option;
+   typedef PO::Value Value;
 
-   const AppFlags& flags() const;
-   std::string inputDir() const;
-   std::string outputDir() const;
-private:
-   void showHelp();
-   void parseFlags();
-   void checkRequiredOptions();
+   /// Manages CLI Commands
+   class AppCliCommands {
+   public:
+      AppCliCommands();
 
-   PO m_po;
-   Option& m_verbose;
-   Option& m_includeAllFiles;
-   Option& m_recursive;
-   Option& m_help;
-   Option& m_force;
-   Option& m_inputDir;
-   Option& m_outputDir;
-   AppFlags m_flags;
-};
+      utils::Expected<std::tuple<AppFlags, std::string, std::string>> parse(int argc, char* argv[]);
+   private:
+      void showHelp();
+      AppFlags parseFlags();
+      utils::Expected<void> checkRequiredOptions();
+
+      PO m_po;
+      Option& m_verbose;
+      Option& m_includeAllFiles;
+      Option& m_recursive;
+      Option& m_help;
+      Option& m_force;
+      Option& m_inputDir;
+      Option& m_outputDir;
+   };
+} // namespace app
