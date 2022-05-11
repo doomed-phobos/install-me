@@ -6,7 +6,9 @@ add_executable(${PROJECT_NAME}
    app.cpp
    app_flags.cpp
    app_cli_commands.cpp
-   cache_manager.cpp
+   package.cpp
+   file.cpp
+   package_manager.cpp
    output.cpp
    string.cpp)
 target_include_directories(${PROJECT_NAME}
