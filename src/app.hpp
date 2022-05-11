@@ -1,11 +1,12 @@
 #pragma once
 #include "src/app_flags.hpp"
+#include "src/fs.hpp"
+#include "src/fwd.hpp"
+#include "src/program_options.hpp"
 
 #include <memory>
 
 namespace app {
-   class AppCliCommands;
-
    class App {
    public:
       App(int argc, char* argv[]);
@@ -14,10 +15,14 @@ namespace app {
       /// Main function
       void run();
    private:
-      // void copy_to(const fs::path& from, const fs::path& to, bool force) const;
-      std::string m_inputDir;
-      std::string m_outputDir;
+      void onHelp(const ProgramOptions::Option& option);
+      void onShowList(const ProgramOptions::Option& option);
+      void onUninstall(const ProgramOptions::Option& option);
+
+      fs::path m_inputDir;
+      fs::path m_outputDir;
       AppFlags m_flags;
       std::unique_ptr<AppCliCommands> m_acc;
+      PackageManager* m_pkgManager;
    };
 } // namespace app
