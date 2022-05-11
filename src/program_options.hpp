@@ -1,6 +1,4 @@
 #pragma once
-#include "src/expected.hpp"
-
 #include <string>
 #include <vector>
 #include <iosfwd>
@@ -15,17 +13,20 @@ namespace app {
          Option& setDescription(const std::string& description);
          Option& setValueName(const std::string& valueName);
          Option& setAliasChr(char aliasChr);
+         Option& setUniqueOption(bool unique);
 
          const std::string& description() const;
          const std::string& valueName() const;
          const std::string& name() const;
          char aliasChr() const;
+         bool isUniqueOption() const;
          bool doesRequiresValue() const;
       private:
          std::string m_name;
          std::string m_valueName;
          std::string m_description;
          char m_aliasChr;
+         bool m_unique;
       };
 
       class Value {
@@ -45,7 +46,7 @@ namespace app {
       ProgramOptions();
       ~ProgramOptions();
 
-      utils::Expected<void> parse(int argc, char* argv[]);
+      void parse(int argc, char* argv[]);
 
       Option& add(const std::string& name);
 

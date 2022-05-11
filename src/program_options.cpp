@@ -3,6 +3,34 @@
 
 #include <algorithm>
 #include <iomanip>
+#include <cmath>
+
+namespace {
+   class center {
+   public:
+      center(const std::string_view& str) :
+         m_str(str) {}
+   private:
+      friend std::ostream& operator<<(std::ostream& out, const center& c);
+
+      const std::string_view& m_str;
+   };
+
+   std::ostream& operator<<(std::ostream& out, const center& c) {
+      std::streamsize w = out.width();
+      if(w > c.m_str.length()) {
+         std::streamsize left = (w + c.m_str.length()) / 2;
+         out.width(left);
+         out << c.m_str;
+         out.width(w - left);
+         out << "";
+      } else {
+         out << c.m_str;
+      }
+
+      return out;
+   }
+}
 
 namespace app {
    typedef ProgramOptions PO;
@@ -25,18 +53,27 @@ namespace app {
          std::runtime_error(utils::fmt_to_str("WTF, what is '%s'?", arg.c_str())) {}
    };
 
+   class InvalidUniqueOption : public std::runtime_error {
+   public:
+      InvalidUniqueOption(const std::string& arg) :
+         std::runtime_error(utils::fmt_to_str("Option '%s' should be the only", arg.c_str())) {}
+   };
+
    PO::Option::Option(const std::string& name) :
       m_name(name),
-      m_aliasChr(EOF) {}
+      m_aliasChr(EOF),
+      m_unique(false) {}
 
    PO::Option& PO::Option::setDescription(const std::string& description) {m_description = description; return *this;}
    PO::Option& PO::Option::setValueName(const std::string& valueName) {m_valueName = valueName; return *this;}
    PO::Option& PO::Option::setAliasChr(char aliasChr) {m_aliasChr = aliasChr; return *this;}
+   PO::Option& PO::Option::setUniqueOption(bool unique) {m_unique = unique; return *this;}
 
    const std::string& PO::Option::description() const {return m_description;}
    const std::string& PO::Option::valueName() const {return m_valueName;}
    const std::string& PO::Option::name() const {return m_name;}
    char PO::Option::aliasChr() const {return m_aliasChr;}
+   bool PO::Option::isUniqueOption() const {return m_unique;}
    bool PO::Option::doesRequiresValue() const {return !m_valueName.empty();}
 
    PO::Value::Value(const Option* opt, const std::string& value) :
@@ -55,7 +92,7 @@ namespace app {
       m_values.clear();
    }
 
-   utils::Expected<void> PO::parse(int argc, char* argv[]) {
+   void PO::parse(int argc, char* argv[]) {
       for(int i = 1; i < argc; ++i) {
          std::string arg(argv[i]);
 
@@ -85,9 +122,13 @@ namespace app {
 
             if(it != m_options.end()) {
                Option* opt = *it;
+               
                if(opt->doesRequiresValue())
                   if(equalSignPos == std::string::npos)
-                     return MissingValueOption(optName, opt->valueName());
+                     throw MissingValueOption(optName, opt->valueName());
+
+               if(opt->isUniqueOption() && argc-1 != 1)
+                  throw InvalidUniqueOption(arg);
 
                m_values.push_back(Value(opt, optValue));
             } else {
@@ -106,12 +147,17 @@ namespace app {
 
             if(it != m_options.end()) {
                Option* opt = *it;
+               int max = 1;
                if(opt->doesRequiresValue()) {
                   if(i+1 >= argc)
-                     return MisingAliasValueOption(opt->aliasChr(), opt->valueName());
+                     throw MisingAliasValueOption(opt->aliasChr(), opt->valueName());
 
                   optValue = argv[++i];
+                  ++max;
                }
+
+               if(opt->isUniqueOption() && argc-1 != max)
+                  throw InvalidUniqueOption(arg);
 
                m_values.push_back(Value(opt, optValue));
             } else {
@@ -120,10 +166,8 @@ namespace app {
          }
 
          if(optName.empty())
-            return InvalidArgument(arg);
+            throw InvalidArgument(arg);
       }
-
-      return {};
    }
 
    PO::Option& PO::add(const std::string& name) {
@@ -152,45 +196,67 @@ namespace app {
    }
 
    std::ostream& operator<<(std::ostream& out, const ProgramOptions& po) {
-      size_t max_width = 0;
+      static constexpr const std::string_view title_str = "OPTIONS";
+      static constexpr const std::string_view cols_str[] = {
+         "Unique", "Short version", "Large version", "Description"
+      };
+      static constexpr const unsigned UNIQUE        = 0;
+      static constexpr const unsigned SHORT_VERSION = 1;
+      static constexpr const unsigned LARGE_VERSION = 2;
+      static constexpr const unsigned DESCRIPTION   = 3;
+
+      size_t max_width_lv = 0;
+      size_t max_width_sv = 0;
+      size_t max_width_description = 0;
+
       for(const auto& opt : po.options()) {
-         max_width = std::max(6 + 2 + opt->name().size() +
-            (opt->doesRequiresValue() ? 2 + opt->valueName().size() + 1 : 0), max_width);
+         max_width_lv = std::max(1 + 2 + opt->name().size() + 
+            (opt->doesRequiresValue() ? 2 + opt->valueName().size() + 1 : 0) + 1, max_width_lv);
+         max_width_sv = std::max(1 + 2 + 
+            (opt->doesRequiresValue() ? 2 + opt->valueName().size() + 1 : 0) + 1, max_width_sv);
+         max_width_description = std::max(1 + opt->description().size() + 1, max_width_description);
       }
 
+      size_t total_width = 2 + cols_str[UNIQUE].size() + 2 + cols_str[SHORT_VERSION].size() + 1 + max_width_lv + 1 + max_width_description + 2;
+
+      out << std::setfill('-') << "\n" << std::setw(total_width+1) << "";
+      out << "\n| " << std::setfill(' ') << std::setw(total_width-3) << center(title_str) << " |";
+      out << std::setfill('-') << "\n" << std::setw(total_width+1) << "";
+
+      out << std::setfill(' ') << "\n| " << cols_str[UNIQUE] << " |" <<
+             std::setw(max_width_sv) << center(cols_str[SHORT_VERSION]) << "|" << 
+             std::setw(max_width_lv) << center(cols_str[LARGE_VERSION]) << "|" << 
+             std::setw(max_width_description) << center(cols_str[DESCRIPTION]) << "|\n";
+      
+      out << std::setfill('-') << std::setw(total_width+1) << "" << "\n";
+
+      out << std::setfill(' ');
       for(const auto& opt : po.options()) {
-         size_t opt_width = 6 + 2 + opt->name().size() +
-            (opt->doesRequiresValue() ? 2 + opt->valueName().size() + 1 : 0);
+         out << std::setw(cols_str[UNIQUE].size()+3);
+         if(opt->isUniqueOption())
+            out << center("*");
+         else
+            out << "";
 
+         out << std::setw(max_width_sv+2);
          if(opt->aliasChr() != EOF) {
-            out << std::setw(3) << "-" << opt->aliasChr() << ", ";
+            std::string sv = "-";
+            sv.push_back(opt->aliasChr());
+            if(opt->doesRequiresValue())
+               sv += " <" + opt->valueName() + ">";
+
+            out << center(sv);
          } else {
-            out << std::setw(6) << " ";
+            out << "";
          }
 
-         out << "--" << opt->name();
+         std::string lv = "--";
+         lv += opt->name();
+         if(opt->doesRequiresValue())
+            lv += "=<" + opt->valueName() + ">";
 
-         if(opt->doesRequiresValue()) {
-            out << "=<" << opt->valueName() << ">";
-         }
-         
-         if(!opt->description().empty()) {
-            bool isMultiline = opt->description().find('\n') != std::string::npos;
-
-            if(!isMultiline) {
-               out << std::setw(max_width - opt_width + 12/*offset*/) << " " << opt->description();
-            } else {
-               std::istringstream ss(opt->description());
-               std::string line;
-               if(std::getline(ss, line)) {
-                  out << std::setw(max_width - opt_width + 12/*offset*/) << " " << line << "\n";
-                  while(std::getline(ss, line))
-                     out << std::setw(max_width + 12/*offset*/) << " " << line << "\n";
-               }
-            }
-         }
-
-         out << std::endl;
+         out << std::setw(max_width_lv+1) << center(lv)
+             << std::setw(max_width_description) << center(opt->description()) << "\n";
       }
 
       return out;
