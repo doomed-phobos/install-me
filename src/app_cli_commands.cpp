@@ -1,9 +1,9 @@
 #include "src/app_cli_commands.hpp"
 
-#include "src/generate_macros.hpp"
-#include "src/output.hpp"
-#include "src/string.hpp"
-#include "src/cache_manager.hpp"
+#include "src/app_flags.hpp"
+#include "src/fs.hpp"
+
+#include <algorithm>
 
 namespace app {
    class MissingRequiredOption : public std::runtime_error {
@@ -11,171 +11,70 @@ namespace app {
       MissingRequiredOption(const Option& o) :
          std::runtime_error("'" + o.name() + "' option is required!") {}
    };
+   
+   AppCliCommands::UniqueOption::UniqueOption(Option& option, Callback&& callback) :
+      m_option(option),
+      m_callback(std::move(callback)) {
+      global_unique_opts.push_back(this);
+   }
+   AppCliCommands::UniqueOption::~UniqueOption() {
+      global_unique_opts.erase(
+         std::find_if(global_unique_opts.cbegin(), global_unique_opts.cend(), [this] (const UniqueOption* uo) -> bool {
+            return this == uo;
+         })
+      );
+   }
+
+   void AppCliCommands::UniqueOption::setCallback(Callback&& callback) {
+      m_callback = std::move(callback);
+   }
+
+   void AppCliCommands::UniqueOption::FindAndExecute(const PO& po) {
+      for(const auto& option : global_unique_opts) {
+         if(po.enabled(option->m_option) && option->m_callback != nullptr) {
+            option->m_callback(option->m_option);
+            exit(0);
+         }
+      }
+   }
 
    AppCliCommands::AppCliCommands() :
+      m_uninstall(m_po.add("uninstall").setUniqueOption(true).setAliasChr('u').setValueName("pkg_name").setDescription("Uninstall a package")),
+      m_symLink(m_po.add("sym_link").setAliasChr('s').setDescription("Create symlinks instead copy files")),
+      m_list(m_po.add("list").setUniqueOption(true).setAliasChr('l').setDescription("Show all installed packages")),
       m_verbose(m_po.add("verbose").setAliasChr('v').setDescription("Show what is going on.")),
-      m_includeAllFiles(m_po.add("include-all-files").setAliasChr('a').setDescription("Includes 'first layer' files (see HOW IT WORKS below).")),
-      m_force(m_po.add("force").setAliasChr('f').setDescription("Create missing directories.")),
       m_inputDir(m_po.add("input_dir").setAliasChr('i').setValueName("dir").setDescription("Directory where project that you want install is located.")),
       m_outputDir(m_po.add("output_dir").setAliasChr('o').setValueName("dir").setDescription("Directory where your project will install.")),
-      m_help(m_po.add("help").setAliasChr('h').setDescription("Show this help list and exit.")),
-      m_recursive(m_po.add("recursive").setAliasChr('r').setDescription("Copy recursive files from found directories in <input_dir> to <output_dir>.\n"
-                                                                        "Without 'recursive mode', it will just copy the 'first layer' (see HOW IT WORKS below).")) {
+      m_help(m_po.add("help").setUniqueOption(true).setAliasChr('h').setDescription("Show this help list and exit.")) {
    }
 
-   utils::Expected<std::tuple<AppFlags, std::string, std::string>> AppCliCommands::parse(int argc, char* argv[]) {
-      // TODO: Don't use try-catch
-      auto res = m_po.parse(argc, argv);
-      if(!res)
-         return res.movetoExpectedT<std::tuple<AppFlags, std::string, std::string>>();
+   void AppCliCommands::setOnHelp(Callback&& callback) {m_help.setCallback(std::move(callback));}
+   void AppCliCommands::setOnShowList(Callback&& callback) {m_list.setCallback(std::move(callback));}
+   void AppCliCommands::setOnUninstall(Callback&& callback) {m_uninstall.setCallback(std::move(callback));}
 
-      if(argc == 1 || (argc == 2 && m_po.enabled(m_help))) {
-         showHelp();
+   std::tuple<AppFlags, fs::path, fs::path> AppCliCommands::parse(int argc, char* argv[]) {
+      m_po.parse(argc, argv);
+      UniqueOption::FindAndExecute(m_po);
 
-         return std::runtime_error("");
-      }
-
-      res = checkRequiredOptions();
-      if(!res)
-         return res.movetoExpectedT<std::tuple<AppFlags, std::string, std::string>>();
-
-      return utils::Expected<std::tuple<AppFlags, std::string, std::string>>(
-         {parseFlags(),
+      checkRequiredOptions();
+      
+      return {parseFlags(),
          m_po.valueOf(m_inputDir),
-         m_po.valueOf(m_outputDir)});
-   }
-
-   void AppCliCommands::showHelp() {
-      std::cout << PROJECT_NAME << " " << VERSION << " by phobos\n\n"
-               << "Usage: " << PROJECT_NAME << " [Options]\n\n"
-               << "OPTIONS:\n"
-               << m_po
-               << "HOW IT WORKS:                                                \n"
-                  " RECURSIVE MODE:                                             \n"
-                  "  *) Without it                                              \n"
-                  "     - my_input_dir               - my_output_dir            \n"
-                  "     |                            |                          \n"
-                  "     --- bin                      --- bin                    \n"
-                  "     |   |                        |   |                      \n"
-                  "     |   --- something            |   --- something          \n"
-                  "     |                            |                          \n"
-                  "     --- include                  --- include                \n"
-                  "     |   |                        |   |                      \n"
-                  "     |   --- cpp                  |   --- something.hpp      \n"
-                  "     |   |   |                    |                          \n"
-                  "     |   |   --- header.hpp       --- lib                    \n"
-                  "     |   |                        |   |                      \n"
-                  "     |   --- something.hpp        |   --- default.jar        \n"
-                  "     |                            |                          \n"
-                  "     --- lib                      --- src                    \n"
-                  "     |   |                            |                      \n"
-                  "     |   --- version_1                --- something.cpp      \n"
-                  "     |   |   |                                               \n"
-                  "     |   |   --- something.jar                               \n"
-                  "     |   --- version_2                                       \n"
-                  "     |   |   |                                               \n"
-                  "     |   |   --- something.jar                               \n"
-                  "     |   |                                                   \n"
-                  "     |   --- default.jar                                     \n"
-                  "     --- src                                                 \n"
-                  "         |                                                   \n"
-                  "         --- something.cpp                                   \n"
-                  "                                                             \n"
-                  "  *) With it                                                 \n"
-                  "     - my_input_dir               - my_output_dir            \n"
-                  "     |                            |                          \n"
-                  "     --- bin                      --- bin                    \n"
-                  "     |   |                        |   |                      \n"
-                  "     |   --- something            |   --- something          \n"
-                  "     |                            |                          \n"
-                  "     --- include                  --- include                \n"
-                  "     |   |                        |   |                      \n"
-                  "     |   --- cpp                  |   --- cpp                \n"
-                  "     |   |   |                    |   |   |                  \n"
-                  "     |   |   --- header.hpp       |   |   --- header.hpp     \n"
-                  "     |   |                            |                      \n"
-                  "     |   --- something.hpp        |   --- something.hpp      \n"
-                  "     |                            |                          \n"
-                  "     --- lib                      --- lib                    \n"
-                  "     |   |                        |   |                      \n"
-                  "     |   --- version_1            |   --- version_1          \n"
-                  "     |   |   |                    |   |    |                 \n"
-                  "     |   |   --- something.jar    |   |    --- something.jar \n"
-                  "     |   --- version_2            |   --- version_2          \n"
-                  "     |   |   |                    |   |   |                  \n"
-                  "     |   |   --- something.jar    |   |   --- something.jar  \n"
-                  "     |   |                        |   |                      \n"
-                  "     |   --- default.jar          |   --- default.jar        \n"
-                  "     |                            |                          \n"
-                  "     --- src                      --- src                    \n"
-                  "         |                            |                      \n"
-                  "         --- something.cpp            --- something.cpp      \n"
-                  "                                                             \n"
-                  " INCLUDE ALL FILES MODE:                                     \n"
-                  "  *) Without it                                              \n"
-                  "     - my_input_dir               - my_output_dir            \n"
-                  "     |                            |                          \n"
-                  "     --- bin                      --- bin                    \n"
-                  "     |   |                        |   |                      \n"
-                  "     |   --- something            |   --- something          \n"
-                  "     |                            |                          \n"
-                  "     --- include                  --- include                \n"
-                  "     |   |                        |   |                      \n"
-                  "     |   --- something.hpp        |   --- something.hpp      \n"
-                  "     |                            |                          \n"
-                  "     --- lib                      --- lib                    \n"
-                  "     |   |                        |   |                      \n"
-                  "     |   --- default.jar          |   --- default.jar        \n"
-                  "     |                            |                          \n"
-                  "     --- src                      --- src                    \n"
-                  "     |   |                            |                      \n"
-                  "     |   --- something.cpp            --- something.cpp      \n"
-                  "     |                                                       \n"
-                  "     --- something else.txt                                  \n"
-                  "     --- something else (1).txt                              \n"
-                  "                                                             \n"
-                  "  *) With it                                                 \n"
-                  "     - my_input_dir               - my_output_dir            \n"
-                  "     |                            |                          \n"
-                  "     --- bin                      --- bin                    \n"
-                  "     |   |                        |   |                      \n"
-                  "     |   --- something            |   --- something          \n"
-                  "     |                            |                          \n"
-                  "     --- include                  --- include                \n"
-                  "     |   |                        |   |                      \n"
-                  "     |   --- something.hpp        |   --- something.hpp      \n"
-                  "     |                            |                          \n"
-                  "     --- lib                      --- lib                    \n"
-                  "     |   |                        |   |                      \n"
-                  "     |   --- default.jar          |   --- default.jar        \n"
-                  "     |                            |                          \n"
-                  "     --- src                      --- src                    \n"
-                  "     |   |                        |   |                      \n"
-                  "     |   --- something.cpp        |   --- something.cpp      \n"
-                  "     |                            |                          \n"
-                  "     --- something else.txt       --- something else.txt     \n"
-                  "     --- something else (1).txt   --- something else (1).txt \n";
-      std::cout << "\n";
+         m_po.valueOf(m_outputDir)};
    }
 
    AppFlags AppCliCommands::parseFlags() {
       AppFlags flags;
-      if(m_po.enabled(m_recursive))
-         flags.addFlags(AppFlags::kRecursive);
-      if(m_po.enabled(m_force))
-         flags.addFlags(AppFlags::kForce);
-      if(m_po.enabled(m_includeAllFiles))
-         flags.addFlags(AppFlags::kIncludeAllFiles);
       if(m_po.enabled(m_verbose))
          flags.addFlags(AppFlags::kVerbose);
+      if(m_po.enabled(m_symLink))
+         flags.addFlags(AppFlags::kSymLink);
 
       return flags;
    }
 
-   utils::Expected<void> AppCliCommands::checkRequiredOptions() {
-      if(!m_po.enabled(m_inputDir)) return MissingRequiredOption(m_inputDir);
-      if(!m_po.enabled(m_outputDir)) return MissingRequiredOption(m_outputDir);
-
-      return {};
+   void AppCliCommands::checkRequiredOptions() {
+      if(!m_po.enabled(m_inputDir)) throw MissingRequiredOption(m_inputDir);
+      if(!m_po.enabled(m_outputDir)) throw MissingRequiredOption(m_outputDir);
    }
 } // namespace app
