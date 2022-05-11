@@ -1,34 +1,55 @@
 #pragma once
 #include "src/program_options.hpp"
-#include "src/app_flags.hpp"
+#include "src/fwd.hpp"
 
-#include <memory>
+#include <list>
 #include <tuple>
+#include <functional>
 
 namespace app {
    typedef ProgramOptions PO;
    typedef PO::Option Option;
    typedef PO::Value Value;
 
-   class CacheManager;
-
    /// Manages CLI Commands
    class AppCliCommands {
    public:
-      AppCliCommands();
+      typedef std::function<void(const Option&)> Callback;
 
-      utils::Expected<std::tuple<AppFlags, std::string, std::string>> parse(int argc, char* argv[]);
+      AppCliCommands();
+      
+      void setOnHelp(Callback&& callback);
+      void setOnShowList(Callback&& callback);
+      void setOnUninstall(Callback&& callback);
+
+      std::tuple<AppFlags, fs::path, fs::path> parse(int argc, char* argv[]);
+
+      const PO& po() const {return m_po;}
    private:
-      void showHelp();
+      class UniqueOption {
+      public:
+         UniqueOption(Option& option, Callback&& callback = nullptr);
+         ~UniqueOption();
+
+         void setCallback(Callback&& callback);
+
+         static void FindAndExecute(const PO& po);
+      private:
+         static inline std::list<UniqueOption*> global_unique_opts;
+
+         Option& m_option;
+         Callback m_callback;
+      };
+
       AppFlags parseFlags();
-      utils::Expected<void> checkRequiredOptions();
+      void checkRequiredOptions();
 
       PO m_po;
+      UniqueOption m_uninstall;
+      UniqueOption m_list;
+      UniqueOption m_help;
+      Option& m_symLink;
       Option& m_verbose;
-      Option& m_includeAllFiles;
-      Option& m_recursive;
-      Option& m_help;
-      Option& m_force;
       Option& m_inputDir;
       Option& m_outputDir;
    };
