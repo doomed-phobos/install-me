@@ -33,18 +33,19 @@ namespace app {
       }
    }
 
-   void DefaultOutput::info(const std::string& msg) {}
-   void DefaultOutput::warning(const std::string& msg) {}
+   void DefaultOutput::info(const std::string& msg) {
+      puts_with_sign(std::cout, '*', msg);
+   }
+   void DefaultOutput::verbose(const std::string& msg) {}
+   void DefaultOutput::warning(const std::string& msg) {
+      puts_with_sign(std::cerr, '!', msg);
+   }
    void DefaultOutput::error(const std::string& msg) {
       if(!msg.empty())
          puts_with_sign(std::cerr, 'x', msg + "\nAborting...");
    }
 
-   void VerboseOutput::info(const std::string& msg) {
-      puts_with_sign(std::cout, '*', msg);
-   }
-
-   void VerboseOutput::warning(const std::string& msg) {
-      puts_with_sign(std::cerr, '!', msg);
+   void VerboseOutput::verbose(const std::string& msg) {
+      puts_with_sign(std::cout, 'V', msg);
    }
 } // namespace app
