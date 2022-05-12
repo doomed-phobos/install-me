@@ -81,6 +81,7 @@ namespace utils {
    };
 
    inline priv::center center(const std::string_view& str) {return {str};}
+   bool yes_or_no_question(const std::string_view& q);
 } // namespace utils
 
 #define INFO(msg) app::Output::Instance()->info(msg)

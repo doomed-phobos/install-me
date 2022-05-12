@@ -118,14 +118,14 @@ namespace utils {
       
       out << std::setfill(' ');
       for(size_t i = 0; i < t.m_totalRows; ++i) {
+         out << "|";
          for(const auto& col : t.m_columns) {
-            out << " " << std::setw(col.preferredWidth()) << center(col.getItem(i)) << "";
+            out << std::setw(col.preferredWidth()) << center(col.getItem(i)) << "|";
          }
-
          out << "\n";
       }
       
-      return out;
+      return out << std::setfill('-') << std::setw(t.m_totalWidth) << "" << std::endl;
    }
 
    /*void table::printItems(std::ostream& out) const {
