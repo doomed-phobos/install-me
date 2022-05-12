@@ -1,36 +1,11 @@
 #include "src/program_options.hpp"
 #include "src/string.hpp"
 
+#include "src/output.hpp"
+
 #include <algorithm>
 #include <iomanip>
 #include <cmath>
-
-namespace {
-   class center {
-   public:
-      center(const std::string_view& str) :
-         m_str(str) {}
-   private:
-      friend std::ostream& operator<<(std::ostream& out, const center& c);
-
-      const std::string_view& m_str;
-   };
-
-   std::ostream& operator<<(std::ostream& out, const center& c) {
-      std::streamsize w = out.width();
-      if(w > c.m_str.length()) {
-         std::streamsize left = (w + c.m_str.length()) / 2;
-         out.width(left);
-         out << c.m_str;
-         out.width(w - left);
-         out << "";
-      } else {
-         out << c.m_str;
-      }
-
-      return out;
-   }
-}
 
 namespace app {
    typedef ProgramOptions PO;
@@ -196,69 +171,27 @@ namespace app {
    }
 
    std::ostream& operator<<(std::ostream& out, const ProgramOptions& po) {
-      static constexpr const std::string_view title_str = "OPTIONS";
-      static constexpr const std::string_view cols_str[] = {
-         "Unique", "Short version", "Large version", "Description"
-      };
-      static constexpr const unsigned UNIQUE        = 0;
-      static constexpr const unsigned SHORT_VERSION = 1;
-      static constexpr const unsigned LARGE_VERSION = 2;
-      static constexpr const unsigned DESCRIPTION   = 3;
+      utils::table options("OPTIONS");
 
-      size_t max_width_lv = 0;
-      size_t max_width_sv = 0;
-      size_t max_width_description = 0;
-
+      utils::table::column unique(options, "Unique");
+      utils::table::column sv(options, "Short version");
+      utils::table::column lv(options, "Long version");
+      utils::table::column description(options, "Description");
       for(const auto& opt : po.options()) {
-         max_width_lv = std::max(1 + 2 + opt->name().size() + 
-            (opt->doesRequiresValue() ? 2 + opt->valueName().size() + 1 : 0) + 1, max_width_lv);
-         max_width_sv = std::max(1 + 2 + 
-            (opt->doesRequiresValue() ? 2 + opt->valueName().size() + 1 : 0) + 1, max_width_sv);
-         max_width_description = std::max(1 + opt->description().size() + 1, max_width_description);
+         unique.addItem(opt->isUniqueOption() ? "*" : "");
+         if(opt->aliasChr() != EOF)
+            sv.addItem("-" + std::string(1, opt->aliasChr()) + 
+               (opt->doesRequiresValue() ? " <" + opt->valueName() + ">" : ""));
+         lv.addItem("--" + opt->name() + 
+            (opt->doesRequiresValue() ? "=<" + opt->valueName() + ">" : ""));
+         description.addItem(opt->description());
       }
 
-      size_t total_width = 2 + cols_str[UNIQUE].size() + 2 + cols_str[SHORT_VERSION].size() + 1 + max_width_lv + 1 + max_width_description + 2;
+      options.addColumn(std::move(unique));
+      options.addColumn(std::move(sv));
+      options.addColumn(std::move(lv));
+      options.addColumn(std::move(description));
 
-      out << std::setfill('-') << "\n" << std::setw(total_width+1) << "";
-      out << "\n| " << std::setfill(' ') << std::setw(total_width-3) << center(title_str) << " |";
-      out << std::setfill('-') << "\n" << std::setw(total_width+1) << "";
-
-      out << std::setfill(' ') << "\n| " << cols_str[UNIQUE] << " |" <<
-             std::setw(max_width_sv) << center(cols_str[SHORT_VERSION]) << "|" << 
-             std::setw(max_width_lv) << center(cols_str[LARGE_VERSION]) << "|" << 
-             std::setw(max_width_description) << center(cols_str[DESCRIPTION]) << "|\n";
-      
-      out << std::setfill('-') << std::setw(total_width+1) << "" << "\n";
-
-      out << std::setfill(' ');
-      for(const auto& opt : po.options()) {
-         out << std::setw(cols_str[UNIQUE].size()+3);
-         if(opt->isUniqueOption())
-            out << center("*");
-         else
-            out << "";
-
-         out << std::setw(max_width_sv+2);
-         if(opt->aliasChr() != EOF) {
-            std::string sv = "-";
-            sv.push_back(opt->aliasChr());
-            if(opt->doesRequiresValue())
-               sv += " <" + opt->valueName() + ">";
-
-            out << center(sv);
-         } else {
-            out << "";
-         }
-
-         std::string lv = "--";
-         lv += opt->name();
-         if(opt->doesRequiresValue())
-            lv += "=<" + opt->valueName() + ">";
-
-         out << std::setw(max_width_lv+1) << center(lv)
-             << std::setw(max_width_description) << center(opt->description()) << "\n";
-      }
-
-      return out;
+      return out << options;
    }
 } // namespace app
