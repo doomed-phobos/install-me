@@ -11,8 +11,9 @@
 #define BIND_MEMBER_FUNCTION(foo) [this] (const ProgramOptions::Option& option) {this->foo(option);}
 
 namespace app {
-   App::App(int argc, char* argv[]) {
-      m_acc.reset(new AppCliCommands());
+   App::App(int argc, char* argv[]) :
+      m_acc(new AppCliCommands()),
+      m_pkgManager(PackageManager::GetInstance()) {
       m_acc->setOnHelp(BIND_MEMBER_FUNCTION(onHelp));
       m_acc->setOnShowList(BIND_MEMBER_FUNCTION(onShowList));
       m_acc->setOnUninstall(BIND_MEMBER_FUNCTION(onUninstall));
@@ -21,8 +22,6 @@ namespace app {
 
       if(m_flags.hasFlags(AppFlags::kVerbose))
          Output::SetInstance(new VerboseOutput());
-
-      m_pkgManager = PackageManager::GetInstance();
    }
 
    App::~App() {}
@@ -30,13 +29,6 @@ namespace app {
    //                   Añadir desinstalación de paquetes
 
    void App::run() {
-      /*if(m_acc->shouldShowPkgList()) {
-         std::cout << "----- Pkg List -----" << std::endl;
-         std::cout << *m_pkgManager;
-         std::cout << "-----   End   -----" << std::endl;
-         return;
-      }*/
-      
       m_inputDir = utils::get_canonical(m_inputDir);
       Package pkg(m_inputDir, m_outputDir, m_flags.hasFlags(AppFlags::kSymLink));
       if(m_pkgManager->hasPackage(pkg.pkgName()))
@@ -165,10 +157,12 @@ namespace app {
    }
 
    void App::onShowList(const Option& option) {
-
+      std::cout << "----- Pkg List -----" << std::endl;
+      std::cout << *m_pkgManager;
+      std::cout << "-----   End   -----" << std::endl;
    }
 
    void App::onUninstall(const Option& option) {
-
+      std::cout << "Package name: " << m_acc->po().valueOf(option) << std::endl;
    }
 } // namespace app

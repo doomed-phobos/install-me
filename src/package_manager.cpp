@@ -4,7 +4,6 @@
 #include "src/fs.hpp"
 #include "src/package.hpp"
 #include "src/file.hpp"
-#include "src/output.hpp"
 
 #include <climits>
 #include <cstring>
