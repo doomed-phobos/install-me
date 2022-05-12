@@ -13,7 +13,7 @@ namespace app {
    };
    
    AppCliCommands::UniqueOption::UniqueOption(Option& option, Callback&& callback) :
-      m_option(option),
+      m_option(option.setUniqueOption(true)),
       m_callback(std::move(callback)) {
       global_unique_opts.push_back(this);
    }
@@ -39,13 +39,13 @@ namespace app {
    }
 
    AppCliCommands::AppCliCommands() :
-      m_uninstall(m_po.add("uninstall").setUniqueOption(true).setAliasChr('u').setValueName("pkg_name").setDescription("Uninstall a package")),
+      m_uninstall(m_po.add("uninstall").setAliasChr('u').setValueName("pkg_name").setDescription("Uninstall a package")),
       m_symLink(m_po.add("sym_link").setAliasChr('s').setDescription("Create symlinks instead copy files")),
-      m_list(m_po.add("list").setUniqueOption(true).setAliasChr('l').setDescription("Show all installed packages")),
+      m_list(m_po.add("list").setAliasChr('l').setDescription("Show all installed packages")),
       m_verbose(m_po.add("verbose").setAliasChr('v').setDescription("Show what is going on.")),
       m_inputDir(m_po.add("input_dir").setAliasChr('i').setValueName("dir").setDescription("Directory where project that you want install is located.")),
       m_outputDir(m_po.add("output_dir").setAliasChr('o').setValueName("dir").setDescription("Directory where your project will install.")),
-      m_help(m_po.add("help").setUniqueOption(true).setAliasChr('h').setDescription("Show this help list and exit.")) {
+      m_help(m_po.add("help").setAliasChr('h').setDescription("Show this help list and exit.")) {
    }
 
    void AppCliCommands::setOnHelp(Callback&& callback) {m_help.setCallback(std::move(callback));}
