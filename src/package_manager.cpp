@@ -4,6 +4,7 @@
 #include "src/fs.hpp"
 #include "src/package.hpp"
 #include "src/file.hpp"
+#include "src/output.hpp"
 
 #include <climits>
 #include <cstring>
@@ -126,16 +127,17 @@ namespace app {
    }
 
    std::ostream& operator<<(std::ostream& out, const PackageManager& pkgManager) {
-      size_t nameMaxWidth = 0;
-      for(const auto& pkg : pkgManager.pkgs())
-         nameMaxWidth = std::max(pkg.pkgName().size(), nameMaxWidth);
-      
+      utils::table pkgs("PACKAGE LIST");
+      utils::table::column name(pkgs, "Name");
+      utils::table::column id(pkgs, "Installation directory");
       for(const auto& pkg : pkgManager.pkgs()) {
-         std::string outDir = pkg.outDir().string();
-         size_t width = outDir.size();
-         out << std::right << std::setw(nameMaxWidth + 1) << pkg.pkgName() << " --> " << outDir << std::endl;        
+         name.addItem(pkg.pkgName());
+         id.addItem(pkg.outDir().string());
       }
 
-      return out;
+      pkgs.addColumn(std::move(name));
+      pkgs.addColumn(std::move(id));
+
+      return out << pkgs;
    }
 } // namespace app

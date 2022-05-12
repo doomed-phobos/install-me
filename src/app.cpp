@@ -6,7 +6,7 @@
 #include "src/package_manager.hpp"
 #include "src/generate_macros.hpp"
 
-// TODO: Crear a request yes/no
+// TODO: 12/05/2020 (IMPORTANT!!!) Create a request yes/no
 
 #define BIND_MEMBER_FUNCTION(foo) [this] (const ProgramOptions::Option& option) {this->foo(option);}
 
@@ -153,13 +153,10 @@ namespace app {
       #else
       ;
       #endif
-      std::cout << "\n";
    }
 
    void App::onShowList(const Option& option) {
-      std::cout << "----- Pkg List -----" << std::endl;
       std::cout << *m_pkgManager;
-      std::cout << "-----   End   -----" << std::endl;
    }
 
    void App::onUninstall(const Option& option) {
