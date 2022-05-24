@@ -1,5 +1,7 @@
 #include "src/output.hpp"
 
+#include "src/string.hpp"
+
 #include <cassert>
 #include <memory>
 
@@ -127,32 +129,4 @@ namespace utils {
       
       return out << std::setfill('-') << std::setw(t.m_totalWidth) << "" << std::endl;
    }
-
-   /*void table::printItems(std::ostream& out) const {
-      out << std::setfill(' ');
-      for(size_t i = 0; i < m_totalRows; ++i) {
-         for(const auto& col : m_columns) {
-            out << " " << std::setw(col->preferredWidth()) << center(col->getItem(i)) << "";
-         }
-         out << "\n";
-      }
-   }
-
-   void table::print(std::ostream& out) const {
-      std::stringstream ss;
-      std::streamsize totalWidth = 1;
-      for(const auto& col : m_columns) {
-         ss << "|" << std::setw(col->preferredWidth()) << center(col->title());
-         totalWidth += 1 + col->preferredWidth();
-      }
-      ss << "|\n";
-      
-      out << std::setfill('-') << std::setw(totalWidth) << "" << std::endl;
-      out << std::setfill(' ') << "|" << std::setw(totalWidth-2) << center(m_title) << "|\n";
-      out << std::setfill('-') << std::setw(totalWidth) << "" << std::endl;
-      out << ss.str();
-      out << std::setfill('-') << std::setw(totalWidth) << "" << std::endl;
-
-      printItems(out);
-   }*/
 } // namespace utils

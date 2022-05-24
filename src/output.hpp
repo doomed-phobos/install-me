@@ -13,7 +13,7 @@ namespace app {
       virtual void warning(const std::string& msg) = 0;
       virtual void error(const std::string& msg) = 0;
    private:
-      friend class App;
+      friend class AppCliCommands;
 
       static void SetInstance(Output* instance);
    };
@@ -81,7 +81,6 @@ namespace utils {
    };
 
    inline priv::center center(const std::string_view& str) {return {str};}
-   bool yes_or_no_question(const std::string_view& q);
 } // namespace utils
 
 #define INFO(msg) app::Output::Instance()->info(msg)
