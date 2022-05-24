@@ -2,6 +2,7 @@
 #include "src/string.hpp"
 
 #include "src/output.hpp"
+#include "src/parse_exception.hpp"
 
 #include <algorithm>
 #include <iomanip>
@@ -10,28 +11,28 @@
 namespace app {
    typedef ProgramOptions PO;
 
-   class MissingValueOption : public std::runtime_error {
+   class MissingValueOption : public ParseException {
    public:
       MissingValueOption(const std::string& optName, const std::string& optValueName) :
-         std::runtime_error(utils::fmt_to_str("Missing value in '--%s=<%s>'", optName.c_str(), optValueName.c_str())) {}
+         ParseException(utils::fmt_to_str("Missing value in '--%s=<%s>'", optName.c_str(), optValueName.c_str())) {}
    };
 
-   class MisingAliasValueOption : public std::runtime_error {
+   class MisingAliasValueOption : public ParseException {
    public:
       MisingAliasValueOption(char aliasChr, const std::string& optValueName) :
-         std::runtime_error(utils::fmt_to_str("Missing value in '-%c <%s>'", aliasChr, optValueName.c_str())) {}
+         ParseException(utils::fmt_to_str("Missing value in '-%c <%s>'", aliasChr, optValueName.c_str())) {}
    };
 
-   class InvalidArgument : public std::runtime_error {
+   class InvalidArgument : public ParseException {
    public:
       InvalidArgument(const std::string& arg) :
-         std::runtime_error(utils::fmt_to_str("WTF, what is '%s'?", arg.c_str())) {}
+         ParseException(utils::fmt_to_str("WTF, what is '%s'?", arg.c_str())) {}
    };
 
-   class InvalidUniqueOption : public std::runtime_error {
+   class InvalidUniqueOption : public ParseException {
    public:
       InvalidUniqueOption(const std::string& arg) :
-         std::runtime_error(utils::fmt_to_str("Option '%s' should be the only", arg.c_str())) {}
+         ParseException(utils::fmt_to_str("Option '%s' should be the only", arg.c_str())) {}
    };
 
    PO::Option::Option(const std::string& name) :
