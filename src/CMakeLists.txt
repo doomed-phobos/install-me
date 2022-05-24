@@ -15,3 +15,5 @@ target_include_directories(${PROJECT_NAME}
    PRIVATE
    ${CMAKE_SOURCE_DIR}
    ${CMAKE_BINARY_DIR})
+
+install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION bin)
