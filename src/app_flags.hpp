@@ -6,8 +6,7 @@ namespace app {
    public:
       enum Enum : uint8_t {
          kNone            = 0,
-         kVerbose         = 1 << 1,
-         kSymLink         = 1 << 2,
+         kSymLink         = 1 << 1,
       };
 
       AppFlags();
