@@ -4,6 +4,7 @@
 #include "src/fwd.hpp"
 #include "src/program_options.hpp"
 
+#include <optional>
 #include <memory>
 
 namespace app {
@@ -19,9 +20,11 @@ namespace app {
       void onShowList(const ProgramOptions::Option& option);
       void onUninstall(const ProgramOptions::Option& option);
 
+      bool m_exit;
       fs::path m_inputDir;
       fs::path m_outputDir;
       AppFlags m_flags;
+      std::optional<std::string> m_name;
       std::unique_ptr<AppCliCommands> m_acc;
       PackageManager* m_pkgManager;
    };

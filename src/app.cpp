@@ -5,154 +5,50 @@
 #include "src/package.hpp"
 #include "src/package_manager.hpp"
 #include "src/generate_macros.hpp"
-
-// TODO: 12/05/2020 (IMPORTANT!!!) Create a request yes/no
+#include "src/string.hpp"
+#include "src/parse_exception.hpp"
+#include "src/package_exception.hpp"
 
 #define BIND_MEMBER_FUNCTION(foo) [this] (const ProgramOptions::Option& option) {this->foo(option);}
 
 namespace app {
    App::App(int argc, char* argv[]) :
       m_acc(new AppCliCommands()),
-      m_pkgManager(PackageManager::GetInstance()) {
+      m_exit(false) {
       m_acc->setOnHelp(BIND_MEMBER_FUNCTION(onHelp));
       m_acc->setOnShowList(BIND_MEMBER_FUNCTION(onShowList));
       m_acc->setOnUninstall(BIND_MEMBER_FUNCTION(onUninstall));
 
-      std::tie(m_flags, m_inputDir, m_outputDir) = m_acc->parse(argc, argv);
-
-      if(m_flags.hasFlags(AppFlags::kVerbose))
-         Output::SetInstance(new VerboseOutput());
+      m_pkgManager = PackageManager::GetInstance();
+      auto result = m_acc->parse(argc, argv);
+      if(!result.has_value()) {
+         m_exit = true;
+      } else {
+         std::tie(m_flags, m_inputDir, m_outputDir, m_name) = *result;
+      }
    }
 
    App::~App() {}
-   // FIXME 08/05/2022: Añadir modo force para copiar incluso si tiene el mismo nombre que un paquete existente
-   //                   Añadir desinstalación de paquetes
 
    void App::run() {
+      if(m_exit)
+         return;
+
+      bool symlink = m_flags.hasFlags(AppFlags::kSymLink);
       m_inputDir = utils::get_canonical(m_inputDir);
-      Package pkg(m_inputDir, m_outputDir, m_flags.hasFlags(AppFlags::kSymLink));
-      if(m_pkgManager->hasPackage(pkg.pkgName()))
-         throw std::runtime_error("Package '" + pkg.pkgName() + "' exists");
-
-      for(const auto& path : fs::recursive_directory_iterator(m_inputDir))
-         pkg.copyFrom(path);
-
-      m_pkgManager->savePackage(std::move(pkg));
+      VERBOSE("Canonical input dir: " + m_inputDir.string());
+       
+      const char* pkgName = nullptr;
+      if(m_name.has_value())
+         pkgName = &(*m_name)[0];
+      Package& pkg = m_pkgManager->createPackageFromDirectory(m_inputDir, m_outputDir, symlink, pkgName);
+      INFO(utils::fmt_to_str("Package '%s' copied to '%s' successfully!", m_inputDir.c_str(), m_outputDir.c_str()));
    }
 
    void App::onHelp(const Option& option) {
       std::cout << PROJECT_NAME << " " << VERSION << " by phobos\n\n"
                << "Usage: " << PROJECT_NAME << " [Options]\n"
-               << m_acc->po()
-      #if 0
-               << "HOW IT WORKS:                                                \n"
-                  " RECURSIVE MODE:                                             \n"
-                  "  *) Without it                                              \n"
-                  "     - my_input_dir               - my_output_dir            \n"
-                  "     |                            |                          \n"
-                  "     --- bin                      --- bin                    \n"
-                  "     |   |                        |   |                      \n"
-                  "     |   --- something            |   --- something          \n"
-                  "     |                            |                          \n"
-                  "     --- include                  --- include                \n"
-                  "     |   |                        |   |                      \n"
-                  "     |   --- cpp                  |   --- something.hpp      \n"
-                  "     |   |   |                    |                          \n"
-                  "     |   |   --- header.hpp       --- lib                    \n"
-                  "     |   |                        |   |                      \n"
-                  "     |   --- something.hpp        |   --- default.jar        \n"
-                  "     |                            |                          \n"
-                  "     --- lib                      --- src                    \n"
-                  "     |   |                            |                      \n"
-                  "     |   --- version_1                --- something.cpp      \n"
-                  "     |   |   |                                               \n"
-                  "     |   |   --- something.jar                               \n"
-                  "     |   --- version_2                                       \n"
-                  "     |   |   |                                               \n"
-                  "     |   |   --- something.jar                               \n"
-                  "     |   |                                                   \n"
-                  "     |   --- default.jar                                     \n"
-                  "     --- src                                                 \n"
-                  "         |                                                   \n"
-                  "         --- something.cpp                                   \n"
-                  "                                                             \n"
-                  "  *) With it                                                 \n"
-                  "     - my_input_dir               - my_output_dir            \n"
-                  "     |                            |                          \n"
-                  "     --- bin                      --- bin                    \n"
-                  "     |   |                        |   |                      \n"
-                  "     |   --- something            |   --- something          \n"
-                  "     |                            |                          \n"
-                  "     --- include                  --- include                \n"
-                  "     |   |                        |   |                      \n"
-                  "     |   --- cpp                  |   --- cpp                \n"
-                  "     |   |   |                    |   |   |                  \n"
-                  "     |   |   --- header.hpp       |   |   --- header.hpp     \n"
-                  "     |   |                            |                      \n"
-                  "     |   --- something.hpp        |   --- something.hpp      \n"
-                  "     |                            |                          \n"
-                  "     --- lib                      --- lib                    \n"
-                  "     |   |                        |   |                      \n"
-                  "     |   --- version_1            |   --- version_1          \n"
-                  "     |   |   |                    |   |    |                 \n"
-                  "     |   |   --- something.jar    |   |    --- something.jar \n"
-                  "     |   --- version_2            |   --- version_2          \n"
-                  "     |   |   |                    |   |   |                  \n"
-                  "     |   |   --- something.jar    |   |   --- something.jar  \n"
-                  "     |   |                        |   |                      \n"
-                  "     |   --- default.jar          |   --- default.jar        \n"
-                  "     |                            |                          \n"
-                  "     --- src                      --- src                    \n"
-                  "         |                            |                      \n"
-                  "         --- something.cpp            --- something.cpp      \n"
-                  "                                                             \n"
-                  " INCLUDE ALL FILES MODE:                                     \n"
-                  "  *) Without it                                              \n"
-                  "     - my_input_dir               - my_output_dir            \n"
-                  "     |                            |                          \n"
-                  "     --- bin                      --- bin                    \n"
-                  "     |   |                        |   |                      \n"
-                  "     |   --- something            |   --- something          \n"
-                  "     |                            |                          \n"
-                  "     --- include                  --- include                \n"
-                  "     |   |                        |   |                      \n"
-                  "     |   --- something.hpp        |   --- something.hpp      \n"
-                  "     |                            |                          \n"
-                  "     --- lib                      --- lib                    \n"
-                  "     |   |                        |   |                      \n"
-                  "     |   --- default.jar          |   --- default.jar        \n"
-                  "     |                            |                          \n"
-                  "     --- src                      --- src                    \n"
-                  "     |   |                            |                      \n"
-                  "     |   --- something.cpp            --- something.cpp      \n"
-                  "     |                                                       \n"
-                  "     --- something else.txt                                  \n"
-                  "     --- something else (1).txt                              \n"
-                  "                                                             \n"
-                  "  *) With it                                                 \n"
-                  "     - my_input_dir               - my_output_dir            \n"
-                  "     |                            |                          \n"
-                  "     --- bin                      --- bin                    \n"
-                  "     |   |                        |   |                      \n"
-                  "     |   --- something            |   --- something          \n"
-                  "     |                            |                          \n"
-                  "     --- include                  --- include                \n"
-                  "     |   |                        |   |                      \n"
-                  "     |   --- something.hpp        |   --- something.hpp      \n"
-                  "     |                            |                          \n"
-                  "     --- lib                      --- lib                    \n"
-                  "     |   |                        |   |                      \n"
-                  "     |   --- default.jar          |   --- default.jar        \n"
-                  "     |                            |                          \n"
-                  "     --- src                      --- src                    \n"
-                  "     |   |                        |   |                      \n"
-                  "     |   --- something.cpp        |   --- something.cpp      \n"
-                  "     |                            |                          \n"
-                  "     --- something else.txt       --- something else.txt     \n"
-                  "     --- something else (1).txt   --- something else (1).txt \n";
-      #else
-      ;
-      #endif
+               << m_acc->po();
    }
 
    void App::onShowList(const Option& option) {
@@ -160,6 +56,11 @@ namespace app {
    }
 
    void App::onUninstall(const Option& option) {
-      std::cout << "Package name: " << m_acc->po().valueOf(option) << std::endl;
+      std::string name = m_acc->po().valueOf(option);
+      try {
+         m_pkgManager->uninstallPackage(name);
+      } catch(const PackageException& e) {
+         ERROR("Uninstall failed: " + std::string(e.what()));
+      }
    }
 } // namespace app
