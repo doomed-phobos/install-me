@@ -5,6 +5,8 @@
 #include "src/package.hpp"
 #include "src/file.hpp"
 #include "src/output.hpp"
+#include "src/package_exception.hpp"
+#include "src/string.hpp"
 
 #include <climits>
 #include <cstring>
@@ -27,8 +29,8 @@ namespace {
       same_package(const std::string& name) :
          m_name(name) {}
       
-      bool operator()(const app::Package& pkg) const {
-         return pkg.pkgName() == m_name;
+      bool operator()(const app::Package* pkg) const {
+         return pkg->name() == m_name;
       }
 
       std::string m_name;
@@ -38,74 +40,187 @@ namespace {
 namespace app {
    PackageManager::PackageManager(const fs::path& dir) :
       m_dir(dir) {
-      for(auto path : fs::directory_iterator(m_dir)) {
-         if(!path.is_directory()) {
+      for(auto entry : fs::directory_iterator(m_dir)) {
+         if(!entry.is_directory()) {
             // Check if it's a cache
-            auto fPath = path.path();
-            utils::File file(fPath);
-            char buf[6];
-            file.read(buf, 6);
-            if(strcmp(buf, MAGIC_NUMBER) == 0)
-               m_pkgs.push_back(loadPackage(fPath.filename(), file));
+            auto fPath = entry.path();
+            auto pkg = loadPackage(fPath);
+            if(!pkg) {
+               WARNING(utils::fmt_to_str("File '%s' isn't a package.", fPath.c_str()));
+               continue;
+            }
+            m_pkgs.push_back(pkg);
          }
       }
    }
 
-   Package PackageManager::loadPackage(const std::string& pkgName, utils::File& file) {
+   PackageManager::~PackageManager() {
+      for(auto& pkg : m_pkgs)
+         delete pkg;
+      m_pkgs.clear();
+   }
+
+   Package* PackageManager::loadPackage(const fs::path& filepath) {
+      utils::File file(filepath);
+
+      char buf[6];
+      file.read(buf, 6);
+      if(strcmp(buf, MAGIC_NUMBER) != 0)
+         return nullptr;
+      
+      uint8_t didOutputExists;
+      file.readU8(&didOutputExists);
+
       uint32_t lengthPath;
       file.readU32(&lengthPath);
 
       std::vector<char> outputDir(lengthPath+1);
       file.read(&outputDir[0], lengthPath);
 
-      std::string str(outputDir.data());
-      Package pkg(std::string(outputDir.data()), pkgName);
+      std::string name = filepath.filename();
+      Package* pkg = new Package(fs::path(outputDir.data()), name, didOutputExists);
       while(!file.isAtEnd()) {
          file.readU32(&lengthPath);
          
          std::vector<char> relativePath(lengthPath+1);
          file.read(&relativePath[0], lengthPath);
-         pkg.addPath(std::string(relativePath.data()));
+         pkg->addRelativePath(std::string(relativePath.data()));
       }
+
       return pkg;
    }
 
-   bool PackageManager::savePackage(Package&& pkg) {
-      utils::WFile file(m_dir/pkg.pkgName());
+   Package& PackageManager::createPackageFromDirectory(const fs::path& input, const fs::path& output, bool symlink, const char* nameOrNull) {
+      std::string name;
+      if(nameOrNull == nullptr)
+         name = input.stem().string();
+      else
+         name = nameOrNull;
+
+      Package* pkg = findPackage(name);
+      if(pkg)
+         throw PackageException(utils::fmt_to_str("Package '%s' already exists.", name.c_str()));
+      
+      pkg = new Package(output, name, fs::is_directory(output));
+      utils::WFile cacheFile(createCacheFileFromPackage(*pkg));
+
+      if(!pkg->didOutputExists())
+         fs::create_directory(output);
+      else
+         WARNING(utils::fmt_to_str("Directory '%s' exists, it'll not removed.", output.c_str()));
+
+      for(auto entry : fs::directory_iterator(input)) {
+         auto relativePath = fs::relative(entry.path(), input);
+         auto outPath = output/relativePath;
+
+         writePathInCacheFile(cacheFile, relativePath);
+         if(symlink)
+            copySymLinkDirectory(entry, outPath);
+         else
+            copyDirectory(entry, outPath);
+         
+
+         VERBOSE(utils::fmt_to_str("'%s' copied ...", entry.path().c_str()));
+         pkg->addRelativePath(relativePath);
+      }
+
+      VERBOSE(utils::fmt_to_str("Package '%s' saved into cache.", pkg->name().c_str()));
+      m_pkgs.push_back(pkg);
+      return *pkg;
+   }
+
+   utils::WFile PackageManager::createCacheFileFromPackage(const Package& pkg) {
+      utils::WFile file(m_dir/pkg.name());
       // Put magic number
       file.writeText(MAGIC_NUMBER);
+      // Put options
+      file.write8(pkg.didOutputExists());
       // Put output dir
       std::string outputDir = pkg.outDir().string();
       file.write32(outputDir.size());
       file.writeText(outputDir.c_str());
-      // Put relative paths
-      for(const auto& path : pkg.relativePaths()) {
-         std::string strPath = path.string();
-         file.write32(strPath.size());
-         file.writeText(strPath.c_str());
+      file.flush();
+
+      return std::move(file);
+   }
+
+   void PackageManager::writePathInCacheFile(utils::WFile& cacheFile, const fs::path& path) {
+      std::string strPath = path.string();
+      cacheFile.write32(strPath.size());
+      cacheFile.writeText(strPath.c_str());
+      cacheFile.flush();
+   }
+
+   void PackageManager::copyDirectory(const fs::directory_entry& e, const fs::path& output) {
+      fs::copy(
+         e.path(),
+         output,
+         fs::copy_options::recursive
+      );
+   }
+
+   void PackageManager::copySymLinkDirectory(const fs::directory_entry& e, const fs::path& output) {
+      if(e.is_directory())
+         fs::create_directory_symlink(e.path(), output);
+      else
+         fs::create_symlink(e.path(), output);
+   }
+
+   void PackageManager::uninstallPackage(const std::string& name) {
+      Package* pkg = findPackage(name);
+      if(pkg == nullptr)
+         throw PackageException(utils::fmt_to_str("Package '%s' don't exists.", name.c_str()));
+
+      for(auto absPath : *pkg) {
+         fs::remove_all(absPath);
+         VERBOSE(utils::fmt_to_str("'%s' removed successfully ...", absPath.c_str()));
       }
 
-      m_pkgs.push_back(std::move(pkg));
+      if(!pkg->didOutputExists()) {
+         std::error_code e;
+         fs::remove(pkg->outDir(), e);
+         if(e)
+            WARNING(utils::fmt_to_str("Output directory '%s' will not removed: %s", pkg->outDir().c_str(), e.message().c_str()));
+         else
+            VERBOSE(utils::fmt_to_str("Output directory '%s' removed successfully.", pkg->outDir().c_str()));
+      }
 
-      return true;
+      removePackage(pkg);
+      INFO(utils::fmt_to_str("Uninstallation '%s' successfully!", name.c_str()));
    }
 
    const Package* PackageManager::findPackage(const std::string& name) const {
-      auto it = std::find_if(m_pkgs.begin(), m_pkgs.end(), same_package(name));
-      if(it != m_pkgs.end())
-         return &(*it);
+      auto it = std::find_if(m_pkgs.cbegin(), m_pkgs.cend(), same_package(name));
+      if(it != m_pkgs.cend())
+         return *it;
       
       return nullptr;
    }
    Package* PackageManager::findPackage(const std::string& name) {
-      return const_cast<Package*>(findPackage(name));
+      auto it = std::find_if(m_pkgs.begin(), m_pkgs.end(), same_package(name));
+      if(it != m_pkgs.end())
+         return *it;
+      
+      return nullptr;
    }
 
    bool PackageManager::hasPackage(const std::string& name) const {
       return findPackage(name) != nullptr;
    }
 
+   void PackageManager::removePackage(const Package* pkg) {
+      for(auto it = m_pkgs.begin(); it != m_pkgs.end(); ++it) {
+         if(*it == pkg) {
+            fs::remove(m_dir/(*it)->name());
+            m_pkgs.erase(it);
+            VERBOSE(utils::fmt_to_str("Package '%s' deleted successfully!", pkg->name().c_str()));
+            break;
+         }
+      }
+   }
+
    const PackageManager::PackageList& PackageManager::pkgs() const {return m_pkgs;}
+   const fs::path& PackageManager::cacheDir() const {return m_dir;}
 
    PackageManager* PackageManager::GetInstance() {
       if(!instance)
@@ -120,7 +235,7 @@ namespace app {
          std::error_code e;
          fs::create_directories(cacheDir/cache_mgr_dirname, e);
          if(e)
-            throw std::runtime_error("Package directory: " + e.message());
+            throw PackageException("Package directory: " + e.message());
       }
 
       return cacheDir/cache_mgr_dirname;
@@ -129,13 +244,16 @@ namespace app {
    std::ostream& operator<<(std::ostream& out, const PackageManager& pkgManager) {
       utils::table pkgs("PACKAGE LIST");
       utils::table::column name(pkgs, "Name");
+      utils::table::column path(pkgs, "Path");
       utils::table::column id(pkgs, "Installation directory");
       for(const auto& pkg : pkgManager.pkgs()) {
-         name.addItem(pkg.pkgName());
-         id.addItem(pkg.outDir().string());
+         name.addItem(pkg->name());
+         path.addItem((pkgManager.cacheDir()/pkg->name()).string());
+         id.addItem(pkg->outDir().string());
       }
 
       pkgs.addColumn(std::move(name));
+      pkgs.addColumn(std::move(path));
       pkgs.addColumn(std::move(id));
 
       return out << pkgs;
