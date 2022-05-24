@@ -25,4 +25,11 @@ namespace utils {
 
       return std::string(&buf[0]);
    }
+
+   std::string to_lower(const std::string_view& str) {
+      std::string result;
+      for(char chr : str)
+         result.push_back(tolower(chr));
+      return result;
+   }
 } // namespace utils
