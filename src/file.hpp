@@ -1,25 +1,36 @@
 #pragma once
 #include "src/fwd.hpp"
 
+#include <memory>
+
 namespace utils {
-   class WFile {
+   namespace priv {
+      class File_base {
+      public:
+         File_base(const fs::path& filepath, const char* mode);
+      private:
+         static void close_if_valid(FILE* file);
+      protected:
+         std::shared_ptr<FILE> m_file;
+      };
+   } // namespace priv
+
+   class WFile : public priv::File_base {
    public:
-      WFile(const fs::path& filepath);
-      ~WFile();
+      explicit WFile(const fs::path& filepath);
 
       bool write8(uint8_t value);
       bool write16(uint16_t value);
       bool write32(uint32_t value);
       bool writeText(const char text[]);
       bool write(const void* buffer, size_t size);
-   private:
-      FILE* m_file;
+
+      void flush();
    };
 
-   class File {
+   class File : public priv::File_base {
    public:
-      File(const fs::path& filepath);
-      ~File();
+      explicit File(const fs::path& filepath);
 
       bool readS8(int8_t* i);
       bool readS16(int16_t* i);
@@ -36,6 +47,5 @@ namespace utils {
 
       size_t m_current;
       size_t m_end;
-      FILE* m_file;
    };
 } // namespace utils

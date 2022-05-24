@@ -8,38 +8,47 @@
 #include <unistd.h>
 
 namespace utils {
+   namespace priv {
+      File_base::File_base(const fs::path& filepath, const char* mode) :
+         m_file(std::shared_ptr<FILE>(fopen(filepath.c_str(), mode), close_if_valid)) {
+         if(!m_file)
+            throw std::runtime_error("Unable to read/write '" + filepath.string() + "'");
+      }
+
+      void File_base::close_if_valid(FILE* file) {
+         if(file)
+            fclose(file);
+      }
+   } // namespace priv
+
    WFile::WFile(const fs::path& filepath) :
-      m_file(fopen(filepath.c_str(), "wb")) {}
-   WFile::~WFile() {
-      if(m_file)
-         fclose(m_file);
-   }
+      priv::File_base(filepath, "wb") {}
 
    bool WFile::write8(uint8_t value)        {return write(&value, 1);}
    bool WFile::write16(uint16_t value)      {return write(&value, 2);}
    bool WFile::write32(uint32_t value)      {return write(&value, 4);}
    bool WFile::writeText(const char text[]) {return write(text, strlen(text));}
    bool WFile::write(const void* buffer, size_t size) {
-      if(m_file == nullptr)
+      if(!m_file)
          return false;
       
-      if(fwrite(buffer, 1, size, m_file) != size) {
-         fclose(m_file);
-         m_file = nullptr;
+      if(fwrite(buffer, 1, size, m_file.get()) != size) {
+         m_file.reset();
          return false;
       }
 
       return true;
    }
 
-   File::File(const fs::path& filepath) {
-      m_file = fopen(filepath.c_str(), "rb");
-      m_current = 0;
-      m_end = fgetsize(m_file);
-   }
-   File::~File() {
+   void WFile::flush() {
       if(m_file)
-         fclose(m_file);
+         fflush(m_file.get());
+   }
+
+   File::File(const fs::path& filepath) :
+      priv::File_base(filepath, "rb") {
+      m_current = 0;
+      m_end = fgetsize(m_file.get());
    }
 
    bool File::readS8(int8_t* i) {
@@ -58,7 +67,7 @@ namespace utils {
       
       size_t bytesRead = size;
       if(buffer)
-         bytesRead = qread(m_file, buffer, size, m_current);
+         bytesRead = qread(m_file.get(), buffer, size, m_current);
 
       if(bytesRead == SIZE_MAX)
          return 0;
@@ -70,7 +79,7 @@ namespace utils {
       if(m_current == m_end)
          return true;
       
-      return m_current >= fgetsize(m_file);
+      return m_current >= fgetsize(m_file.get());
    }
 
    size_t File::fgetsize(FILE* f) {
