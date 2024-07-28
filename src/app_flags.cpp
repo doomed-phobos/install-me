@@ -1,17 +1,19 @@
 #include "app_flags.hpp"
 
 namespace app {
-   AppFlags::AppFlags() :
-      m_flags(0) {}
+  AppFlags::AppFlags() :
+    AppFlags(0) {}
+  AppFlags::AppFlags(unsigned value) :
+    m_value(value) {}
 
-   void AppFlags::setFlags(Enum flags) {
-      m_flags = flags;
-   }
-   void AppFlags::addFlags(Enum flags) {
-      m_flags |= flags;
-   }
+  void AppFlags::setFlags(Enum flags) {
+    m_value = flags;
+  }
+  void AppFlags::addFlags(Enum flags) {
+    m_value |= flags;
+  }
 
-   bool AppFlags::hasFlags(Enum flags) const {
-      return (m_flags & flags) == flags;
-   }
+  bool AppFlags::hasFlags(Enum flags) const {
+    return (m_value & flags) == flags;
+  }
 } // namespace app

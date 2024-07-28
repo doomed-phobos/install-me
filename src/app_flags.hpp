@@ -9,12 +9,14 @@ namespace app {
     };
 
     AppFlags();
+    AppFlags(unsigned value);
 
     void setFlags(Enum flags);
     void addFlags(Enum flags);
 
     bool hasFlags(Enum flags) const;
+    unsigned value() const {return m_value;}
   private:
-    unsigned m_flags;
+    unsigned m_value;
   };
 } // namespace app
