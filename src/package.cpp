@@ -1,9 +1,9 @@
-#include "src/package.hpp"
+#include "package.hpp"
 
-#include "src/fs.hpp"
-#include "src/output.hpp"
-#include "src/string.hpp"
-#include "src/package_exception.hpp"
+#include "fs.hpp"
+#include "output.hpp"
+#include "string.hpp"
+#include "package_exception.hpp"
 
 namespace app {
    Package::Package(const fs::path& output, const std::string& pkgName, bool didOutputExists) :

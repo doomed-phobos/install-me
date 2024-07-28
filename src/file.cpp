@@ -1,6 +1,6 @@
-#include "src/file.hpp"
+#include "file.hpp"
 
-#include "src/fs.hpp"
+#include "fs.hpp"
 
 #include <cassert>
 #include <cstdio>

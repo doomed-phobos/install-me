@@ -1,132 +1,75 @@
-#include "src/output.hpp"
+#include "output.hpp"
 
-#include "src/string.hpp"
-
-#include <cassert>
-#include <memory>
+#include <iostream>
+#include <ranges>
+#include <vector>
 
 namespace app {
-   static std::shared_ptr<Output> g_instance(new DefaultOutput());
+  namespace out {
+    struct Format {
+      enum class Attribute : char {
+        Default = 0,
+        Bold    = 1,
+      } attr = Attribute::Default;
 
-   Output* Output::Instance() {
-      return g_instance.get();
-   }
+      enum class Foreground : char {
+        Default      = 39,
+        Black        = 30,
+        Red          = 31,
+        Green        = 32,
+        Yellow       = 33,
+        Blue         = 34,
+        Magenta      = 35,
+        Cyan         = 36,
+        LightGray    = 37,
+        DarkGray     = 90,
+        LightRed     = 91,
+        LightGreen   = 92,
+        LightYellow  = 93,
+        LightBlue    = 94,
+        LightMagenta = 95,
+        LightCyan    = 96,
+        White        = 97
+      } fg = Foreground::Default;
 
-   void Output::SetInstance(Output* instance) {
-      assert(instance);
-      g_instance.reset(instance);
-   }
-
-   void DefaultOutput::puts_with_sign(std::ostream& out, char sign, const std::string& msg) {
-      if(sign == EOF || msg.empty())
-         return;
-
-      bool multiline = msg.find('\n') != std::string::npos;
-      if(!multiline) {
-         out << "[" << sign << "] " << msg << std::endl;
-      } else {
-         std::istringstream ss(msg);
-         std::string line;
-         if(std::getline(ss, line)) {
-            out << "[" << sign << "] " << line << std::endl;
-            while(std::getline(ss, line))
-               out << "    " << line << std::endl;
-         }
+    /// "\033[{FORMAT_ATTRIBUTE};{FORGROUND_COLOR};{BACKGROUND_COLOR}m{TEXT}\033[{RESET_FORMATE_ATTRIBUTE}m"
+      static std::string format(Format fmt, const std::string& msg) {
+        return std::format("\033[{};{};49m{}\033[0m",
+          static_cast<int>(fmt.attr), static_cast<int>(fmt.fg), msg);
       }
-   }
+    };
 
-   void DefaultOutput::info(const std::string& msg) {
-      puts_with_sign(std::cout, '*', msg);
-   }
-   void DefaultOutput::verbose(const std::string& msg) {}
-   void DefaultOutput::warning(const std::string& msg) {
-      puts_with_sign(std::cerr, '!', msg);
-   }
-   void DefaultOutput::error(const std::string& msg) {
-      if(!msg.empty())
-         puts_with_sign(std::cerr, 'x', msg + "\nAborting...");
-   }
+    void output_with_sign(std::ostream& out, char sign, Format fmt, const std::string& msg) {
+      auto lines = msg | std::views::split('\n') | std::ranges::to<std::vector<std::string>>();
 
-   void VerboseOutput::verbose(const std::string& msg) {
-      puts_with_sign(std::cout, 'V', msg);
-   }
+      lines.front().insert(0, std::format("[{}] ", sign));
+      for(auto& remain : lines | std::views::drop(1))
+        remain.insert(0, 4, ' ');
+
+      out << Format::format(fmt, lines | std::views::join_with('\n') | std::ranges::to<std::string>()) << std::endl;
+    }
+
+    void info(const std::string& msg) {
+      output_with_sign(std::cout, '*', {.fg = Format::Foreground::Blue}, msg);
+    }
+
+    void verbose(const std::string& msg) {
+      if(allow_verbose)
+        output_with_sign(std::cout, 'V', {}, msg);
+    }
+
+    void warning(const std::string& msg) {
+      output_with_sign(std::cout, '!', {.attr = Format::Attribute::Bold, .fg = Format::Foreground::Yellow}, msg);
+    }
+
+    void error(const std::string& msg) {
+      output_with_sign(std::cerr, 'X', {.attr = Format::Attribute::Bold, .fg = Format::Foreground::Red}, msg);
+    }
+
+    void debug(const std::string& msg) {
+      #ifdef APP_DEBUG
+      output_with_sign(std::cout, 'D', {}, msg);
+      #endif
+    }
+  } // namespace out
 } // namespace app
-
-namespace utils {
-   namespace priv {
-      std::ostream& operator<<(std::ostream& out, const center& c) {
-         std::streamsize w = out.width();
-         if(w > c.str.length()) {
-            std::streamsize left = (w + c.str.length()) / 2;
-            out.width(left);
-            out << c.str;
-            out.width(w - left);
-            out << "";
-         } else {
-            out << c.str;
-         }
-
-         return out;
-      }
-   } // namespace priv
-   
-   // =================
-   // Column
-   // =================
-   table::column::column(table& parent, const std::string& title, unsigned padding) :
-      m_parent(parent),
-      m_title(title),
-      m_padding(padding),
-      m_width(m_title.size()) {}
-   
-   void table::column::addItem(const std::string& item) {
-      m_items.push_back(item);
-      m_width = std::max<std::streamsize>(item.size(), m_width);
-      m_parent.m_totalRows = std::max(m_items.size(), m_parent.m_totalRows);
-   }
-
-   std::streamsize table::column::preferredWidth() const {
-      return m_width + padding()*2;
-   }
-
-   std::string table::column::getItem(size_t i) const {
-      if(i >= 0 && i < m_items.size())
-         return m_items[i];
-      return "";
-   }
-
-   // =================
-   // Table
-   // =================
-   table::table(const std::string& title) :
-      m_title(title),
-      m_totalRows(0),
-      m_totalWidth(1) {
-      m_ss << "|";
-   }
-   
-   void table::addColumn(column&& col) {
-      m_ss << std::setw(col.preferredWidth()) << center(col.title()) << "|";
-      m_totalWidth += 1 + col.preferredWidth();
-      m_columns.push_back(std::move(col));
-   }
-
-   std::ostream& operator<<(std::ostream& out, const table& t) {
-      out << std::setfill('-') << std::setw(t.m_totalWidth) << "" << std::endl;
-      out << std::setfill(' ') << "|" << std::setw(t.m_totalWidth-2) << center(t.m_title) << "|\n";
-      out << std::setfill('-') << std::setw(t.m_totalWidth) << "" << std::endl;
-      out << t.m_ss.str() << std::endl;
-      out << std::setfill('-') << std::setw(t.m_totalWidth) << "" << std::endl;
-      
-      out << std::setfill(' ');
-      for(size_t i = 0; i < t.m_totalRows; ++i) {
-         out << "|";
-         for(const auto& col : t.m_columns) {
-            out << std::setw(col.preferredWidth()) << center(col.getItem(i)) << "|";
-         }
-         out << "\n";
-      }
-      
-      return out << std::setfill('-') << std::setw(t.m_totalWidth) << "" << std::endl;
-   }
-} // namespace utils

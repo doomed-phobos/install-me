@@ -1,12 +1,8 @@
-#include "src/program_options.hpp"
-#include "src/string.hpp"
+#include "program_options.hpp"
 
-#include "src/output.hpp"
-#include "src/parse_exception.hpp"
-
-#include <algorithm>
-#include <iomanip>
-#include <cmath>
+#include "output.hpp"
+#include "parse_exception.hpp"
+#include "table.hpp"
 
 namespace app {
    typedef ProgramOptions PO;
@@ -14,25 +10,25 @@ namespace app {
    class MissingValueOption : public ParseException {
    public:
       MissingValueOption(const std::string& optName, const std::string& optValueName) :
-         ParseException(utils::fmt_to_str("Missing value in '--%s=<%s>'", optName.c_str(), optValueName.c_str())) {}
+         ParseException(std::format("Missing value in '--{}=<{}>'", optName, optValueName)) {}
    };
 
    class MisingAliasValueOption : public ParseException {
    public:
       MisingAliasValueOption(char aliasChr, const std::string& optValueName) :
-         ParseException(utils::fmt_to_str("Missing value in '-%c <%s>'", aliasChr, optValueName.c_str())) {}
+         ParseException(std::format("Missing value in '-{} <{}>'", aliasChr, optValueName)) {}
    };
 
    class InvalidArgument : public ParseException {
    public:
       InvalidArgument(const std::string& arg) :
-         ParseException(utils::fmt_to_str("WTF, what is '%s'?", arg.c_str())) {}
+         ParseException(std::format("What the hell is '{}'?", arg)) {}
    };
 
    class InvalidUniqueOption : public ParseException {
    public:
       InvalidUniqueOption(const std::string& arg) :
-         ParseException(utils::fmt_to_str("Option '%s' should be the only", arg.c_str())) {}
+         ParseException(std::format("Option '{}' should be the only", arg)) {}
    };
 
    PO::Option::Option(const std::string& name) :
@@ -52,21 +48,15 @@ namespace app {
    bool PO::Option::isUniqueOption() const {return m_unique;}
    bool PO::Option::doesRequiresValue() const {return !m_valueName.empty();}
 
-   PO::Value::Value(const Option* opt, const std::string& value) :
+   PO::Value::Value(const Option& opt, const std::string& value) :
       m_option(opt),
       m_value(value) {}
 
-   const PO::Option* PO::Value::option() const {return m_option;}
+   const PO::Option& PO::Value::option() const {return m_option;}
    const std::string& PO::Value::value() const {return m_value;}
 
    PO::ProgramOptions() {}
-   PO::~ProgramOptions() {
-      for(auto& opt : m_options)
-         delete opt;
-      
-      m_options.clear();
-      m_values.clear();
-   }
+   PO::~ProgramOptions() {}
 
    void PO::parse(int argc, char* argv[]) {
       for(int i = 1; i < argc; ++i) {
@@ -91,22 +81,22 @@ namespace app {
             OptionList::iterator it = std::find_if(
                m_options.begin(),
                m_options.end(),
-               [&](const Option* opt) -> bool {
-                  return opt->name() == optName;
+               [&](const Option& opt) -> bool {
+                  return opt.name() == optName;
                }
             );
 
             if(it != m_options.end()) {
-               Option* opt = *it;
+               Option& opt = *it;
                
-               if(opt->doesRequiresValue())
+               if(opt.doesRequiresValue())
                   if(equalSignPos == std::string::npos)
-                     throw MissingValueOption(optName, opt->valueName());
+                     throw MissingValueOption(optName, opt.valueName());
 
-               if(opt->isUniqueOption() && argc-1 != 1)
+               if(opt.isUniqueOption() && argc-1 != 1)
                   throw InvalidUniqueOption(arg);
 
-               m_values.push_back(Value(opt, optValue));
+               m_values.emplace_back(opt, optValue);
             } else {
                optName.clear();
             }
@@ -116,26 +106,26 @@ namespace app {
             OptionList::iterator it = std::find_if(
                m_options.begin(),
                m_options.end(),
-               [&](const Option* opt) -> bool {
-                  return opt->aliasChr() == optName[0];
+               [&](const Option& opt) -> bool {
+                  return opt.aliasChr() == optName[0];
                }
             );
 
             if(it != m_options.end()) {
-               Option* opt = *it;
+               Option& opt = *it;
                int max = 1;
-               if(opt->doesRequiresValue()) {
+               if(opt.doesRequiresValue()) {
                   if(i+1 >= argc)
-                     throw MisingAliasValueOption(opt->aliasChr(), opt->valueName());
+                     throw MisingAliasValueOption(opt.aliasChr(), opt.valueName());
 
                   optValue = argv[++i];
                   ++max;
                }
 
-               if(opt->isUniqueOption() && argc-1 != max)
+               if(opt.isUniqueOption() && argc-1 != max)
                   throw InvalidUniqueOption(arg);
-
-               m_values.push_back(Value(opt, optValue));
+               
+               m_values.emplace_back(opt, optValue);
             } else {
                optName.clear();   
             }
@@ -147,52 +137,46 @@ namespace app {
    }
 
    PO::Option& PO::add(const std::string& name) {
-      Option* opt = new Option(name);
-      m_options.push_back(opt);
-      return *opt;
+      return m_options.emplace_back(name);
    }
 
    const PO::OptionList& PO::options() const {return m_options;}
    const PO::ValueList& PO::values() const {return m_values;}
 
    bool PO::enabled(const Option& opt) const {
-      for(const auto& value : m_values)
-         if(value.option() == &opt)
+      for(auto&& value : m_values) {
+         if(&value.option() == &opt) {
             return true;
+         }
+      }
       
       return false;
    }
 
    std::string PO::valueOf(const Option& opt) const {
       for(const auto& value : m_values)
-         if(value.option() == &opt)
+         if(&value.option() == &opt)
             return value.value();
-
-      return "";   
+      
+      throw MissingValueOption(opt.name(), opt.valueName());
    }
 
    std::ostream& operator<<(std::ostream& out, const ProgramOptions& po) {
-      utils::table options("OPTIONS");
+      using namespace std::literals;
+      utils::table<4> options(1);
+      options.setTitle("OPTIONS");
+      options.addRow({"UNIQUE", "SHORT VERSION", "LONG VERSION", "DESCRIPTION"});
 
-      utils::table::column unique(options, "Unique");
-      utils::table::column sv(options, "Short version");
-      utils::table::column lv(options, "Long version");
-      utils::table::column description(options, "Description");
-      for(const auto& opt : po.options()) {
-         unique.addItem(opt->isUniqueOption() ? "*" : "");
-         if(opt->aliasChr() != EOF)
-            sv.addItem("-" + std::string(1, opt->aliasChr()) + 
-               (opt->doesRequiresValue() ? " <" + opt->valueName() + ">" : ""));
-         lv.addItem("--" + opt->name() + 
-            (opt->doesRequiresValue() ? "=<" + opt->valueName() + ">" : ""));
-         description.addItem(opt->description());
-      }
+      for(const auto& opt : po.options())
+         options.addRow(
+            {
+               opt.isUniqueOption() ? "*" : "",
+               opt.aliasChr() != EOF ? "-"s + opt.aliasChr() + (opt.doesRequiresValue() ? " <" + opt.valueName() + ">" : "")  : "",
+               "--" + opt.name() + (opt.doesRequiresValue() ? "=<" + opt.valueName() + ">" : ""),
+               opt.description()
+            });
 
-      options.addColumn(std::move(unique));
-      options.addColumn(std::move(sv));
-      options.addColumn(std::move(lv));
-      options.addColumn(std::move(description));
-
-      return out << options;
+      options.print(out);
+      return out;
    }
 } // namespace app

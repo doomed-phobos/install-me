@@ -1,4 +1,4 @@
-#include "src/app_flags.hpp"
+#include "app_flags.hpp"
 
 namespace app {
    AppFlags::AppFlags() :

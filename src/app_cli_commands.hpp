@@ -1,59 +1,55 @@
 #pragma once
-#include "src/program_options.hpp"
-#include "src/fwd.hpp"
+#include "program_options.hpp"
+#include "fs.hpp"
+#include "app_flags.hpp"
 
 #include <list>
-#include <tuple>
 #include <functional>
-#include <optional>
 
 namespace app {
-   typedef ProgramOptions PO;
-   typedef PO::Option Option;
-   typedef PO::Value Value;
-
    /// Manages CLI Commands
    class AppCliCommands {
    public:
-      typedef std::function<void(const Option&)> Callback;
+      struct ParseResult {
+         AppFlags flags;
+         fs::path inputDir;
+         fs::path outputDir;
+      };
 
       AppCliCommands();
       
-      void setOnHelp(Callback&& callback);
-      void setOnShowList(Callback&& callback);
-      void setOnUninstall(Callback&& callback);
+      std::optional<ParseResult> parse(int argc, char* argv[]);
 
-      std::optional<
-         std::tuple<AppFlags, fs::path, fs::path, std::optional<std::string>>> parse(int argc, char* argv[]);
-      
-      const PO& po() const {return m_po;}
+      auto& getHelpCallback() {return m_help.callback;}
+      auto& getShowListCallback() {return m_list.callback;}
+      auto& getUninstallCallback() {return m_uninstall.callback;}
+      const ProgramOptions& po() const {return m_po;}
    private:
-      class CallableOption {
-      public:
-         CallableOption(Option& option, Callback&& callback = nullptr);
+      typedef std::function<void(const ProgramOptions::Option&)> Callback;
+
+      struct CallableOption {
+         ProgramOptions::Option& option;
+         Callback callback;
+         
+         CallableOption(ProgramOptions::Option& option);
          ~CallableOption();
 
-         void setCallback(Callback&& callback);
-
-         static bool FindAndExecute(const PO& po);
-      private:
-         static inline std::list<CallableOption*> global_unique_opts;
-
-         Option& m_option;
-         Callback m_callback;
+         static bool FindAndExecute(const ProgramOptions& po);
+         
+         static inline std::list<CallableOption*> s_opts;
       };
 
-      AppFlags parseFlags();
       void checkRequiredOptions();
+      AppFlags parseFlags();
 
-      PO m_po;
+      ProgramOptions m_po;
       CallableOption m_uninstall;
       CallableOption m_list;
       CallableOption m_help;
-      Option& m_name;
-      Option& m_symLink;
-      Option& m_verbose;
-      Option& m_inputDir;
-      Option& m_outputDir;
+      ProgramOptions::Option& m_name;
+      ProgramOptions::Option& m_symLink;
+      ProgramOptions::Option& m_verbose;
+      ProgramOptions::Option& m_inputDir;
+      ProgramOptions::Option& m_outputDir; 
    };
 } // namespace app

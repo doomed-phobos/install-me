@@ -1,12 +1,12 @@
-#include "src/package_manager.hpp"
+#include "package_manager.hpp"
 
-#include "src/generate_macros.hpp"
-#include "src/fs.hpp"
-#include "src/package.hpp"
-#include "src/file.hpp"
-#include "src/output.hpp"
-#include "src/package_exception.hpp"
-#include "src/string.hpp"
+#include "generate_macros.hpp"
+#include "fs.hpp"
+#include "package.hpp"
+#include "file.hpp"
+#include "output.hpp"
+#include "package_exception.hpp"
+#include "string.hpp"
 
 #include <climits>
 #include <cstring>

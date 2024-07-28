@@ -1,6 +1,6 @@
 #pragma once
 #include <string>
-#include <vector>
+#include <list>
 #include <iosfwd>
 
 namespace app {
@@ -31,17 +31,17 @@ namespace app {
 
       class Value {
       public:
-         Value(const Option* opt, const std::string& value);
+         Value(const Option& opt, const std::string& value);
 
-         const Option* option() const;
+         const Option& option() const;
          const std::string& value() const;
       private:
-         const Option* m_option;
+         const Option& m_option;
          std::string m_value;
       };
 
-      typedef std::vector<Option*> OptionList;
-      typedef std::vector<Value> ValueList;
+      typedef std::list<Option> OptionList;
+      typedef std::list<Value> ValueList;
 
       ProgramOptions();
       ~ProgramOptions();

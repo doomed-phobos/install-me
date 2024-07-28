@@ -1,10 +1,9 @@
 #pragma once
-#include <cstdint>
 
 namespace app {
    class AppFlags {
    public:
-      enum Enum : uint8_t {
+      enum Enum : unsigned char {
          kNone            = 0,
          kSymLink         = 1 << 1,
       };
