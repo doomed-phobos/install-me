@@ -8,6 +8,6 @@ namespace app {
     fs::path inputDir;
     fs::path outputDir;
     std::string name; // Can be empty
-    int nthreads;
+    int nthreads{5};
   };
 } // namespace app

@@ -7,7 +7,7 @@
 #include "file.hpp"
 #include "output.hpp"
 #include "package_exception.hpp"
-// #include "string.hpp"
+#include "table.hpp"
 
 #include <climits>
 #include <cstring>
@@ -28,43 +28,74 @@ namespace {
 }
 
 namespace app {
+  /*
+    PackageManager::PackageManager(const fs::path& dir) :
+    m_dir(dir) {
+    for(auto entry : fs::directory_iterator(m_dir)) {
+        if(!entry.is_directory()) {
+          // Check if it's a cache
+          auto fPath = entry.path();
+          auto pkg = loadPackage(fPath);
+          if(!pkg) {
+              WARNING(utils::fmt_to_str("File '%s' isn't a package.", fPath.c_str()));
+              continue;
+          }
+          m_pkgs.push_back(pkg);
+        }
+    }
+  }
+  */
+
   PackageManager::PackageManager(const fs::path& dir) :
     m_dir{dir} {
-    for(auto&& entry : fs::directory_iterator(m_dir)) {
-      if(!entry.is_directory()) {
-
-      }
+    for(auto entry : fs::directory_iterator(m_dir)) {
+        if(!entry.is_directory()) {
+          // Check if it's a cache
+          auto fPath = entry.path();
+          auto pkg = loadPackage(fPath);
+          if(!pkg) {
+            WARNING("File '{}' isn't a package.", fPath.string());
+            continue;
+          }
+          m_pkgs.emplace_back(pkg);
+        }
     }
   }
 
-  Package& PackageManager::createPackage(const PackageInfo& info) {
+  Package* PackageManager::loadPackage(const fs::path& filepath) {
+    return new UninstallPackage(filepath);
+  }
+
+  bool PackageManager::installPackage(const PackageInfo& info) {
+    if(hasPackage(info.name)) {
+      WARNING("Package '{}' already exists", info.name);
+      return false;
+    }
+
+    VERBOSE("Installing '{}' package", info.name);
+    return (*createPackage(info))(cacheDir());
+  }
+
+  Package* PackageManager::findPackage(const std::string& name) {
+    auto it = std::ranges::find(m_pkgs, name, [](const auto& e) {return e->info().name;});
+    return it != m_pkgs.end() ? it->get() : nullptr;
+  }
+
+  bool PackageManager::hasPackage(const std::string& name) {
+    return findPackage(name) != nullptr;
+  }
+
+  Package* PackageManager::createPackage(PackageInfo info) {
     if(!fs::is_directory(info.inputDir))
       throw std::runtime_error(std::format("Input directory '{}' don't exists", info.inputDir.string()));
     
-    std::string name = info.name;
-    if(name.empty())
-        name = info.inputDir.stem().string();
-      
-    INFO("-- PACKAGE INFO '{}' --", name);
+    INFO("-- PACKAGE INFO '{}' --", info.name);
     INFO("Input dir: {}", info.inputDir.string());
     INFO("Output dir: {}", info.outputDir.string());
     INFO("Symlink: {}", info.flags.hasFlags(AppFlags::kSymLink));
-    
-    std::vector<fs::path> paths;
-    for(auto&& entry : fs::recursive_directory_iterator(info.inputDir)) {
-      if(!entry.is_directory()) {
-        VERBOSE("Adding '{}' to package '{}'", entry.path().string(), name);
-        paths.push_back(entry.path());
-      }
-    }
-    // auto& pkg = m_pkgs.emplace_back(name, inputDir, fs::directory_entry(inputDir) | std::ranges::to<std::vector<fs::path>>());
 
-    // Package* pkg = findPackage(name);
-    // if(pkg)
-        // throw PackageException(utils::fmt_to_str("Package '%s' already exists.", name.c_str()));
-    
-    // pkg = new Package(output, name, fs::is_directory(output));
-    // utils::WFile cacheFile(createCacheFileFromPackage(*pkg));
+    if(auto pkg = findPackage(info.name); pkg)
+        throw std::runtime_error(std::format("Package '{}' already exists.", info.name));
 
     // if(!pkg->didOutputExists())
         // fs::create_directory(output);
@@ -89,8 +120,27 @@ namespace app {
     // VERBOSE(utils::fmt_to_str("Package '%s' saved into cache.", pkg->name().c_str()));
     // m_pkgs.push_back(pkg);
     // return *pkg;
+    
+    return m_pkgs.emplace_back(new InstallPackage(info)).get();
+  }
 
-    return m_pkgs.emplace_back(PackageInfo{info.flags, info.inputDir, info.outputDir, name, info.nthreads}, std::move(paths));
+  bool PackageManager::uninstallPackage(const std::string& name) {
+    auto pkg = findPackage(name);
+    if(!pkg) {
+      ERROR("Uninstall failed: Package '{}' don't exists", name);
+      return false;
+    }
+    
+    if((*pkg)(m_dir)) {
+      removePackage(pkg);
+      VERBOSE("Removing '{}' package from cache", name);
+      return true;
+    } else
+      return false;
+  }
+
+  void PackageManager::removePackage(const Package* pkg) {
+    m_pkgs.erase(std::ranges::find(m_pkgs, pkg, &PackageList::value_type::get));
   }
 
   PackageManager& PackageManager::GetInstance() {
@@ -110,56 +160,11 @@ namespace app {
 
     return cacheDir/cache_mgr_dirname;
   }
-  /*PackageManager::PackageManager(const fs::path& dir) :
-    m_dir(dir) {
-    for(auto entry : fs::directory_iterator(m_dir)) {
-        if(!entry.is_directory()) {
-          // Check if it's a cache
-          auto fPath = entry.path();
-          auto pkg = loadPackage(fPath);
-          if(!pkg) {
-              WARNING(utils::fmt_to_str("File '%s' isn't a package.", fPath.c_str()));
-              continue;
-          }
-          m_pkgs.push_back(pkg);
-        }
-    }
-  }
-
+  /*
   PackageManager::~PackageManager() {
     for(auto& pkg : m_pkgs)
         delete pkg;
     m_pkgs.clear();
-  }
-
-  Package* PackageManager::loadPackage(const fs::path& filepath) {
-    utils::File file(filepath);
-
-    char buf[6];
-    file.read(buf, 6);
-    if(strcmp(buf, MAGIC_NUMBER) != 0)
-        return nullptr;
-    
-    uint8_t didOutputExists;
-    file.readU8(&didOutputExists);
-
-    uint32_t lengthPath;
-    file.readU32(&lengthPath);
-
-    std::vector<char> outputDir(lengthPath+1);
-    file.read(&outputDir[0], lengthPath);
-
-    std::string name = filepath.filename();
-    Package* pkg = new Package(fs::path(outputDir.data()), name, didOutputExists);
-    while(!file.isAtEnd()) {
-        file.readU32(&lengthPath);
-        
-        std::vector<char> relativePath(lengthPath+1);
-        file.read(&relativePath[0], lengthPath);
-        pkg->addRelativePath(std::string(relativePath.data()));
-    }
-
-    return pkg;
   }
 
   Package& PackageManager::createPackageFromDirectory(const fs::path& input, const fs::path& output, bool symlink, const char* nameOrNull) {
@@ -199,28 +204,6 @@ namespace app {
     VERBOSE(utils::fmt_to_str("Package '%s' saved into cache.", pkg->name().c_str()));
     m_pkgs.push_back(pkg);
     return *pkg;
-  }
-
-  utils::WFile PackageManager::createCacheFileFromPackage(const Package& pkg) {
-    utils::WFile file(m_dir/pkg.name());
-    // Put magic number
-    file.writeText(MAGIC_NUMBER);
-    // Put options
-    file.write8(pkg.didOutputExists());
-    // Put output dir
-    std::string outputDir = pkg.outDir().string();
-    file.write32(outputDir.size());
-    file.writeText(outputDir.c_str());
-    file.flush();
-
-    return std::move(file);
-  }
-
-  void PackageManager::writePathInCacheFile(utils::WFile& cacheFile, const fs::path& path) {
-    std::string strPath = path.string();
-    cacheFile.write32(strPath.size());
-    cacheFile.writeText(strPath.c_str());
-    cacheFile.flush();
   }
 
   void PackageManager::copyDirectory(const fs::directory_entry& e, const fs::path& output) {
@@ -290,24 +273,21 @@ namespace app {
         }
     }
   }
-
-  const PackageManager::PackageList& PackageManager::pkgs() const {return m_pkgs;}
+  */
 
   std::ostream& operator<<(std::ostream& out, const PackageManager& pkgManager) {
-    utils::table pkgs("PACKAGE LIST");
-    utils::table::column name(pkgs, "Name");
-    utils::table::column path(pkgs, "Path");
-    utils::table::column id(pkgs, "Installation directory");
-    for(const auto& pkg : pkgManager.pkgs()) {
-        name.addItem(pkg->name());
-        path.addItem((pkgManager.cacheDir()/pkg->name()).string());
-        id.addItem(pkg->outDir().string());
-    }
+    utils::table<3> table(1);
+    table.setTitle("PACKAGE LISTS");
+    table.addRow({"Name", "Path", "Installation directory"});
+    for(const auto& pkg : pkgManager.pkgs())
+      table.addRow(
+        {
+          pkg->info().name,
+          (pkgManager.cacheDir()/pkg->info().name).string(),
+          pkg->info().outputDir.string()
+        });
 
-    pkgs.addColumn(std::move(name));
-    pkgs.addColumn(std::move(path));
-    pkgs.addColumn(std::move(id));
-
-    return out << pkgs;
-  }*/
+    table.print(out);
+    return out;
+  }
 } // namespace app
