@@ -65,11 +65,5 @@ namespace app {
     void error(const std::string& msg) {
       output_with_sign(std::cerr, 'X', {.attr = Format::Attribute::Bold, .fg = Format::Foreground::Red}, msg);
     }
-
-    void debug(const std::string& msg) {
-      #ifdef APP_DEBUG
-      output_with_sign(std::cout, 'D', {}, msg);
-      #endif
-    }
   } // namespace out
 } // namespace app

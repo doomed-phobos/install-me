@@ -1,5 +1,4 @@
 #include "app.hpp"
-#include "package_manager.hpp"
 #include "parse_exception.hpp"
 #include "output.hpp"
 #include "generate_macros.hpp"

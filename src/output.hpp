@@ -4,7 +4,6 @@
 
 namespace app {
   namespace out {
-    void debug(const std::string& msg);
     void info(const std::string& msg);
     void verbose(const std::string& msg);
     void warning(const std::string& msg);
@@ -30,17 +29,12 @@ namespace app {
       error(std::format(fmt, std::forward<Args>(args)...));
     }
 
-    template<typename... Args>
-    void debug(const std::format_string<Args...>& fmt, Args&&... args) {
-      debug(std::format(fmt, std::forward<Args>(args)...));
-    }
 
     inline bool allow_verbose{};
   } // namespace out
 } // namespace app
 
 #define INFO(...) app::out::info(__VA_ARGS__)
-#define DEBUG(...) app::out::debug(__VA_ARGS__)
 #define VERBOSE(...) app::out::verbose(__VA_ARGS__)
 #define WARNING(...) app::out::warning(__VA_ARGS__)
 #define ERROR(...) app::out::error(__VA_ARGS__)
