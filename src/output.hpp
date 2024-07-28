@@ -35,7 +35,7 @@ namespace app {
       debug(std::format(fmt, std::forward<Args>(args)...));
     }
 
-    static bool allow_verbose{};
+    inline bool allow_verbose{};
   } // namespace out
 } // namespace app
 

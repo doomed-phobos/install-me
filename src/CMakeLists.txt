@@ -12,21 +12,31 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/generate_macros.hpp.in ${CMAKE_CURREN
 #    output.cpp
 #    string.cpp)
 add_executable(${PROJECT_NAME}
-   main.cpp
-   program_options.cpp
-   app.cpp
-   app_flags.cpp
-   app_cli_commands.cpp
-   # package.cpp
-   # file.cpp
-   # package_manager.cpp
-   output.cpp)
-   # string.cpp)
+  main.cpp
+  program_options.cpp
+  app.cpp
+  app_flags.cpp
+  app_cli_commands.cpp
+  package.cpp
+  file.cpp
+  thread_pool.cpp
+  package_manager.cpp
+  output.cpp)
+  
 target_include_directories(${PROJECT_NAME}
-   PRIVATE
-   ${CMAKE_CURRENT_BINARY_DIR})
+  PRIVATE
+  ${CMAKE_CURRENT_BINARY_DIR})
+
+set(PROJECT_DEFINITIONS)
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-target_compile_definitions(${PROJECT_NAME} PRIVATE -DAPP_DEBUG)
+  list(APPEND PROJECT_DEFINITIONS -DAPP_DEBUG)
+  endif()
+
+if(UNIX)
+  list(APPEND PROJECT_DEFINITIONS -DAPP_UNIX)
+elseif(WIN32)
+  list(APPEND PROJECT_DEFINITIONS -DAPP_WINDOWS)
 endif()
+target_compile_definitions(${PROJECT_NAME} PRIVATE ${PROJECT_DEFINITIONS})
 
 install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION bin)

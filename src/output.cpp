@@ -50,12 +50,12 @@ namespace app {
     }
 
     void info(const std::string& msg) {
-      output_with_sign(std::cout, '*', {.fg = Format::Foreground::Blue}, msg);
+      output_with_sign(std::cout, '*', {.fg = Format::Foreground::Green}, msg);
     }
 
     void verbose(const std::string& msg) {
       if(allow_verbose)
-        output_with_sign(std::cout, 'V', {}, msg);
+        output_with_sign(std::cout, 'V', {.fg = Format::Foreground::Blue}, msg);
     }
 
     void warning(const std::string& msg) {

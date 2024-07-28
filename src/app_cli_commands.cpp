@@ -2,7 +2,10 @@
 
 #include "parse_exception.hpp"
 #include "output.hpp"
+#include "package_info.hpp"
 
+#include <string>
+#include <thread>
 #include <algorithm>
 
 namespace app {
@@ -37,12 +40,13 @@ namespace app {
     m_symLink(m_po.add("sym_link").setAliasChr('s').setDescription("Create symlinks instead copy files.")),
     m_list(m_po.add("list").setUniqueOption(true).setAliasChr('l').setDescription("Show all installed packages.")),
     m_verbose(m_po.add("verbose").setAliasChr('v').setDescription("Show what is going on.")),
+    m_nthreads(m_po.add("threads").setAliasChr('t').setValueName("nthreads").setDescription(std::format("# threads to copy files. Default is 5. Max is {}.", std::thread::hardware_concurrency()))),
     m_name(m_po.add("name").setAliasChr('n').setValueName("pkg_name").setDescription("Set custom package name. Default is <input_dir> directory name.")),
     m_inputDir(m_po.add("input_dir").setAliasChr('i').setValueName("dir").setDescription("Directory where project that you want install is located.")),
     m_outputDir(m_po.add("output_dir").setAliasChr('o').setValueName("dir").setDescription("Directory where your project will install.")),
     m_help(m_po.add("help").setUniqueOption(true).setAliasChr('?').setDescription("Show this help list.")) {}
 
-  std::optional<AppCliCommands::ParseResult> AppCliCommands::parse(int argc, char* argv[]) {
+  std::optional<PackageInfo> AppCliCommands::parse(int argc, char* argv[]) {
     m_po.parse(argc, argv);
     
     if(m_po.enabled(m_verbose))
@@ -53,16 +57,12 @@ namespace app {
     
     checkRequiredOptions();
     
-    std::optional<std::string> name{};
-    if(m_po.enabled(m_name))
-        name = m_po.valueOf(m_name);
-
-    // return std::tuple<AppFlags, fs::path, fs::path, std::optional<std::string>>(
-    //    parseFlags(),
-    //    m_po.valueOf(m_inputDir),
-    //    m_po.valueOf(m_outputDir),
-    //    name)};
-    return {{parseFlags(), m_po.valueOf(m_inputDir), m_po.valueOf(m_outputDir)}};
+    return {{
+      parseFlags(),
+      m_po.valueOf(m_inputDir),
+      m_po.valueOf(m_outputDir),
+      m_po.enabled(m_name) ? m_po.valueOf(m_name) : "",
+      m_po.enabled(m_nthreads) ? std::stoi(m_po.valueOf(m_nthreads)) : 5}};
   }
 
   void AppCliCommands::checkRequiredOptions() {

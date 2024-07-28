@@ -3,44 +3,52 @@
 #include "fs.hpp"
 
 #include <memory>
-#include <vector>
+#include <list>
 
 namespace app {
-   // Located in $HOME/.cache/$PROGRAM
-   class PackageManager {
-   public:
-      typedef std::vector<Package*> PackageList;
-      ~PackageManager();
+  // Located in $HOME/.cache/$PROGRAM
+  class PackageManager {
+  public:
+    typedef std::list<Package> PackageList;
+    PackageManager(const PackageManager&) = delete;
+    PackageManager& operator=(const PackageManager&) = delete;
 
-      void uninstallPackage(const std::string& name);
-      Package& createPackageFromDirectory(const fs::path& input, const fs::path& output, bool symlink = false, const char* nameOrNull = nullptr);
+    Package& createPackage(const PackageInfo& info);    
 
-      const Package* findPackage(const std::string& name) const;
-      Package* findPackage(const std::string& name);
-      bool hasPackage(const std::string& name) const;
-      void removePackage(const Package* pkg);
+    const fs::path& cacheDir() const {return m_dir;}
 
-      const PackageList& pkgs() const;
-      const fs::path& cacheDir() const;
-      static PackageManager* GetInstance();
-   private:
-      static constexpr const char* MAGIC_NUMBER = "lCache";
-      static inline std::shared_ptr<PackageManager> instance = nullptr;
-      static inline constexpr const char* cache_mgr_dirname = "packages";
-      static fs::path CreateAndGetCacheDirectory();
-      
-      Package* loadPackage(const fs::path& filepath);
-      utils::WFile createCacheFileFromPackage(const Package& pkg);
-      void writePathInCacheFile(utils::WFile& cacheFile, const fs::path& path);
+    static PackageManager& GetInstance();
+  /*public:
+    ~PackageManager();
 
-      PackageManager(const fs::path& dir);
-      
-      void copyDirectory(const fs::directory_entry& e, const fs::path& output);
-      void copySymLinkDirectory(const fs::directory_entry& e, const fs::path& output);
-      
-      PackageList m_pkgs;
-      fs::path m_dir;
-   };
+    void uninstallPackage(const std::string& name);
+    Package& createPackageFromDirectory(const fs::path& input, const fs::path& output, bool symlink = false, const char* nameOrNull = nullptr);
 
-std::ostream& operator<<(std::ostream& out, const PackageManager& pkgManager);
+    const Package* findPackage(const std::string& name) const;
+    Package* findPackage(const std::string& name);
+    bool hasPackage(const std::string& name) const;
+    void removePackage(const Package* pkg);
+
+    const PackageList& pkgs() const;
+  private:
+    static constexpr const char* MAGIC_NUMBER = "lCache";
+    
+    Package* loadPackage(const fs::path& filepath);
+    utils::WFile createCacheFileFromPackage(const Package& pkg);
+    void writePathInCacheFile(utils::WFile& cacheFile, const fs::path& path);
+
+    void copyDirectory(const fs::directory_entry& e, const fs::path& output);
+    void copySymLinkDirectory(const fs::directory_entry& e, const fs::path& output);
+    
+    */
+  private:
+    PackageManager(const fs::path& dir);
+    static fs::path CreateAndGetCacheDirectory();
+    static inline constexpr const char* cache_mgr_dirname = "packages";
+    
+    fs::path m_dir;
+    PackageList m_pkgs;
+  };
+
+  std::ostream& operator<<(std::ostream& out, const PackageManager& pkgManager);
 } // namespace app

@@ -3,6 +3,8 @@
 // #include "fs.hpp"
 // #include "program_options.hpp"
 #include "app_cli_commands.hpp"
+#include "package_info.hpp"
+#include "fwd.hpp"
 
 #include <memory>
 
@@ -19,14 +21,14 @@ namespace app {
       void onUninstall(const ProgramOptions::Option& option);
       
       std::unique_ptr<AppCliCommands> m_acc;
-      AppCliCommands::ParseResult m_pack;
+      PackageInfo m_pack;
       bool m_shouldExit;
+      PackageManager& m_pkgManager;
       /*
       fs::path m_inputDir;
       fs::path m_outputDir;
       AppFlags m_flags;
       std::optional<std::string> m_name;
-      PackageManager* m_pkgManager;
       */
    };
 } // namespace app

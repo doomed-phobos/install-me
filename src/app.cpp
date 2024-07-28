@@ -2,20 +2,20 @@
 
 // #include "app_cli_commands.hpp"
 #include "generate_macros.hpp"
-// #include "package.hpp"
-// #include "package_manager.hpp"
+#include "package.hpp"
+#include "output.hpp"
+#include "package_manager.hpp"
 // #include "string.hpp"
 // #include "parse_exception.hpp"
 // #include "package_exception.hpp"
 
 #include <iostream>
 
-#define BIND_MEMBER_FUNCTION(foo) [this] (const ProgramOptions::Option& option) {this->foo(option);}
-
 namespace app {
   App::App(int argc, char* argv[]) :
     m_acc{std::make_unique<AppCliCommands>()},
-    m_shouldExit{} {
+    m_shouldExit{},
+    m_pkgManager{PackageManager::GetInstance()} {
     m_acc->getHelpCallback() = [this] (const auto& opt) {onHelp(opt);};
     m_acc->getShowListCallback() = [this] (const auto& opt) {onShowList(opt);};
     m_acc->getUninstallCallback() = [this] (const auto& opt) {onUninstall(opt);};
@@ -29,6 +29,12 @@ namespace app {
   void App::run() {
     if(m_shouldExit)
       return;
+    
+    auto& pkg = m_pkgManager.createPackage(m_pack);
+    if(!pkg.save().get())
+      throw std::runtime_error(std::format("Failed to creating package '{}'", pkg.info().name));
+    else
+      WARNING("Package '{}' created successfully", pkg.info().name);
   }
 
   void App::onHelp(const ProgramOptions::Option& option) {
@@ -49,6 +55,7 @@ namespace app {
         // ERROR("Uninstall failed: " + std::string(e.what()));
     // }
   }
+  
   /*App::App(int argc, char* argv[]) :
     m_acc(new AppCliCommands()),
     m_exit(false) {
