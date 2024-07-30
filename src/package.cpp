@@ -32,27 +32,35 @@ namespace app {
       WARNING("You're using more threads that availables!!");
 
     std::future<bool> future = m_promise.get_future();
-    m_pool.start(info().nthreads);
-    for(fs::path path; hasNextFile();) {
-      path = nextFile();
-      ++m_nfiles;
+    while(hasNextPath()) {
+      auto path = nextPath();
+      if(fs::is_directory(path)) {
+        if(!processDirectory(path)) {
+          m_promise.set_value(false);
+          return future;
+        }
+        continue;
+      }
+
       m_pool.queueJob([path = std::move(path), this] {
-        if(m_skip) return;
         if(!processFile(path)) {
           m_promise.set_value(false);
-          m_skip = true;
           return;
         }
 
+        {
         std::unique_lock lock(m_mtx);
         ++m_nfilesProcessed;
-        VERBOSE("File '{}' processed successfully", path.string());
+        VERBOSE("File '{}' processed successfully. {} of {}", path.string(), m_nfilesProcessed, m_nfiles);
         if(m_nfiles <= m_nfilesProcessed) {
           m_promise.set_value(true);
-          m_skip = true;
+        }
         }
       });
+      ++m_nfiles;
     }
+    
+    m_pool.start(info().nthreads);
 
     return future;
   }
@@ -70,21 +78,49 @@ namespace app {
     m_cachefile.flush();
   }
 
-  fs::path InstallPackage::nextFile() {
-    return *m_it++;    
+  fs::path InstallPackage::nextPath() {                                           
+    return *m_it++;
   }
 
-  bool InstallPackage::hasNextFile() {
+  bool InstallPackage::hasNextPath() {
     return m_it != fs::recursive_directory_iterator();
   }
 
+  bool InstallPackage::processDirectory(const fs::path& dirpath) {
+    const auto& output = m_info.outputDir / fs::relative(dirpath, m_info.inputDir);
+    VERBOSE("Creating directory in '{}'...", output.string());
+    std::error_code e;
+    fs::create_directories(output, e);
+
+    if(e) {
+      ERROR("Failed to create directory in '{}'", output.string());
+      return false;
+    }
+
+    return true;
+  }
+
   bool InstallPackage::processFile(const fs::path& filepath) {
+    VERBOSE("Copying file from '{}' to '{}'...", filepath.string(), m_info.outputDir.string());
+    const auto& output = m_info.outputDir / fs::relative(filepath, m_info.inputDir);
+    std::error_code e;
+
+    if(!m_info.flags.hasFlags(AppFlags::kSymLink)) {
+      fs::copy(filepath, output, e);
+      if(e) goto err;
+    }
+
     {
     std::unique_lock lock(m_mtx);
-    m_cachefile.writePath(filepath);
+    m_cachefile.writePath(output);
     m_cachefile.flush();
     }
+
     return true;
+
+    err:
+      ERROR("Failed to copy '{}': {}", filepath.string(), e.message());
+      return false;
   }
 
   UninstallPackage::UninstallPackage(const fs::path& cachepath) :
@@ -104,23 +140,37 @@ namespace app {
     m_cachefile.readPath(&m_info.outputDir);
   }
 
-  fs::path UninstallPackage::nextFile() {
+  fs::path UninstallPackage::nextPath() {
     fs::path res;
     m_cachefile.readPath(&res);
     return res;
   }
 
-  bool UninstallPackage::hasNextFile() {
+  bool UninstallPackage::hasNextPath() {
     return !m_cachefile.isAtEnd();
   }
 
   bool UninstallPackage::processFile(const fs::path& filepath) {
+    VERBOSE("Removing '{}' file...", filepath.string());
+    std::error_code e;
+    fs::remove(filepath, e);
+    if(e) {
+      ERROR("Failed to uninstall '{}': {}", filepath.string(), e.message());
+      return false;
+    }
+    return true;
+  }
+
+  bool UninstallPackage::processDirectory(const fs::path& dirpath) {
+    // Nothing to do
     return true;
   }
 
   void UninstallPackage::onEndProcess() {
     auto f = m_cachefile.filepath();
     m_cachefile.close();
+
+    fs::remove_all(m_info.outputDir);
     fs::remove(f);
   }
 } // namespace app

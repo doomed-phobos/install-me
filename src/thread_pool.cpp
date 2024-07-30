@@ -1,5 +1,7 @@
 #include "thread_pool.hpp"
 
+#include <future>
+
 namespace app {
   ThreadPool::~ThreadPool() {
     stop();

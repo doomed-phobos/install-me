@@ -34,10 +34,23 @@ namespace app {
     if(m_shouldExit)
       return;
     
-    if(!m_pkgManager.installPackage(m_pack))
+    if(fs::is_empty(m_pack.inputDir)) {
+      ERROR("Input dir '{}' is empty", m_pack.inputDir.string());
+      goto err;
+    }
+
+    if(!utils::create_if_not_exists(m_pack.outputDir)) {
+      goto err;
+    } else {
+      WARNING("Output dir '{}' already exists.", m_pack.outputDir.string());
+    }
+
+    if(!m_pkgManager.installPackage(m_pack)) goto err;
+    else WARNING("Package '{}' created successfully", m_pack.name);
+
+    return;
+    err:
       throw std::runtime_error(std::format("Failed to creating package '{}'", m_pack.name));
-    else
-      WARNING("Package '{}' created successfully", m_pack.name);
   }
 
   void App::onHelp(const ProgramOptions::Option& option) {

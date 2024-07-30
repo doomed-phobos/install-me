@@ -4,7 +4,7 @@
 #include "package_info.hpp"
 #include "thread_pool.hpp"
 
-#include <vector>
+#include <queue>
 #include <future>
 
 namespace app {
@@ -22,14 +22,15 @@ namespace app {
     Package() {}
 
     /// Iterator
-    virtual fs::path nextFile() = 0;
-    virtual bool hasNextFile() = 0;
+    virtual fs::path nextPath() = 0;
+    virtual bool hasNextPath() = 0;
 
     std::future<bool> asyncProcess();
     void completed() {onEndProcess(); m_completed = true;}
 
     virtual void onStartProcess() {}
     virtual bool processFile(const fs::path& filepath) = 0;
+    virtual bool processDirectory(const fs::path& dirpath) = 0;
     virtual void onEndProcess() {}
     
     PackageInfo m_info;
@@ -39,7 +40,6 @@ namespace app {
     std::promise<bool> m_promise;
     size_t m_nfiles{};
     size_t m_nfilesProcessed{};
-    bool m_skip{};
     bool m_completed{};
   };
 
@@ -47,11 +47,12 @@ namespace app {
   public:
     InstallPackage(const PackageInfo& info);
   private:
-    virtual fs::path nextFile() override;
-    virtual bool hasNextFile() override;
+    virtual fs::path nextPath() override;
+    virtual bool hasNextPath() override;
 
     virtual void onStartProcess() override;
     virtual bool processFile(const fs::path& filepath) override;
+    virtual bool processDirectory(const fs::path& dirpath) override;
     void createCacheFile(const fs::path& filepath);
 
     std::mutex m_mtx;
@@ -63,12 +64,14 @@ namespace app {
   public:
     UninstallPackage(const fs::path& cachepath);
   private:
-    virtual fs::path nextFile() override;
-    virtual bool hasNextFile() override;
+    virtual fs::path nextPath() override;
+    virtual bool hasNextPath() override;
 
     virtual bool processFile(const fs::path& filepath) override;
+    virtual bool processDirectory(const fs::path& dirpath) override;
     virtual void onEndProcess() override;
 
+    std::queue<fs::path> m_dirs;
     utils::File m_cachefile;
   };
 } // namespace app
