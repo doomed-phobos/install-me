@@ -105,10 +105,8 @@ namespace app {
     const auto& output = m_info.outputDir / fs::relative(filepath, m_info.inputDir);
     std::error_code e;
 
-    if(!m_info.flags.hasFlags(AppFlags::kSymLink)) {
-      fs::copy(filepath, output, e);
-      if(e) goto err;
-    }
+    fs::copy(filepath, output, e);
+    if(e) goto err;
 
     {
     std::unique_lock lock(m_mtx);

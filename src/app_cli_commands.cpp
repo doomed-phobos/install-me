@@ -3,6 +3,7 @@
 #include "parse_exception.hpp"
 #include "output.hpp"
 #include "package_info.hpp"
+#include "app_flags.hpp"
 
 #include <string>
 #include <thread>
@@ -37,8 +38,8 @@ namespace app {
 
   AppCliCommands::AppCliCommands() :
     m_uninstall(m_po.add("uninstall").setAliasChr('u').setValueName("pkg_name").setDescription("Uninstall a package.")),
-    m_symLink(m_po.add("sym_link").setAliasChr('s').setDescription("Create symlinks instead copy files.")),
     m_list(m_po.add("list").setUniqueOption(true).setAliasChr('l').setDescription("Show all installed packages.")),
+    // m_hidden(m_po.add("hidden").setAliasChr('s').setDescription("Import hidden files too.")),
     m_verbose(m_po.add("verbose").setAliasChr('v').setDescription("Show what is going on.")),
     m_nthreads(m_po.add("threads").setAliasChr('t').setValueName("nthreads").setDescription(std::format("# threads to copy files. Default is 5. Max is {}.", std::thread::hardware_concurrency()))),
     m_name(m_po.add("name").setAliasChr('n').setValueName("pkg_name").setDescription("Set custom package name. Default is <input_dir> directory name.")),
@@ -72,8 +73,8 @@ namespace app {
 
   AppFlags AppCliCommands::parseFlags() {
     AppFlags flags;
-    if(m_po.enabled(m_symLink))
-        flags.addFlags(AppFlags::kSymLink);
+    // if(m_po.enabled(m_hidden))
+        // flags.addFlags(AppFlags::kHidden);
 
     return flags;
   }

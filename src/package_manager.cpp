@@ -1,10 +1,8 @@
 #include "package_manager.hpp"
 
-#include "generate_macros.hpp"
 #include "fs.hpp"
 #include "package.hpp"
 #include "package_info.hpp"
-#include "file.hpp"
 #include "output.hpp"
 #include "package_exception.hpp"
 #include "table.hpp"
@@ -60,7 +58,6 @@ namespace app {
     INFO("-- PACKAGE INFO '{}' --", info.name);
     INFO("Input dir: {}", info.inputDir.string());
     INFO("Output dir: {}", info.outputDir.string());
-    INFO("Symlink: {}", info.flags.hasFlags(AppFlags::kSymLink));
 
     if(auto pkg = findPackage(info.name); pkg)
         throw std::runtime_error(std::format("Package '{}' already exists.", info.name));

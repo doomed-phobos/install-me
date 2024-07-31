@@ -5,7 +5,7 @@ namespace app {
   public:
     enum Enum : unsigned char {
       kNone            = 0,
-      kSymLink         = 1 << 1,
+      kHidden          = 1 << 1,
     };
 
     AppFlags();

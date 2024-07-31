@@ -1,7 +1,6 @@
 #pragma once
 #include "program_options.hpp"
 #include "fwd.hpp"
-#include "app_flags.hpp"
 
 #include <list>
 #include <optional>
@@ -42,7 +41,6 @@ namespace app {
     CallableOption m_list;
     CallableOption m_help;
     ProgramOptions::Option& m_name;
-    ProgramOptions::Option& m_symLink;
     ProgramOptions::Option& m_verbose;
     ProgramOptions::Option& m_nthreads;
     ProgramOptions::Option& m_inputDir;
