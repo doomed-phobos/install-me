@@ -163,14 +163,15 @@ namespace app {
 
    std::ostream& operator<<(std::ostream& out, const ProgramOptions& po) {
       using namespace std::literals;
-      utils::table<4> options(1);
+      utils::table<5> options(1);
       options.setTitle("OPTIONS");
-      options.addRow({"UNIQUE", "SHORT VERSION", "LONG VERSION", "DESCRIPTION"});
+      options.addRow({"UNIQUE", "REQUIRED", "SHORT VERSION", "LONG VERSION", "DESCRIPTION"});
 
       for(const auto& opt : po.options())
          options.addRow(
             {
                opt.isUniqueOption() ? "*" : "",
+               opt.doesRequiresValue() ? "*" : "",
                opt.aliasChr() != EOF ? "-"s + opt.aliasChr() + (opt.doesRequiresValue() ? " <" + opt.valueName() + ">" : "")  : "",
                "--" + opt.name() + (opt.doesRequiresValue() ? "=<" + opt.valueName() + ">" : ""),
                opt.description()
