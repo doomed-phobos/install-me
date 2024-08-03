@@ -43,8 +43,11 @@ namespace app {
       }
 
       m_pool.queueJob([path = std::move(path), this] {
+        if(m_shouldStop) return;
+        
         if(!processFile(path)) {
           m_promise.set_value(false);
+          m_shouldStop = true;
           return;
         }
 
@@ -90,11 +93,17 @@ namespace app {
     const auto& output = m_info.outputDir / fs::relative(dirpath, m_info.inputDir);
     VERBOSE("Creating directory in '{}'...", output.string());
     std::error_code e;
-    fs::create_directories(output, e);
+    if(!fs::create_directory(output, e)) {
+      if(e) {
+        ERROR("Failed to create directory in '{}'", output.string());
+        return false;
+      }
 
-    if(e) {
-      ERROR("Failed to create directory in '{}'", output.string());
-      return false;
+      WARNING("Directory located in '{}' already exists", output.string());
+    } else {
+      std::unique_lock lock(m_mtx);
+      m_cachefile.writePath(output);
+      m_cachefile.flush();
     }
 
     return true;
@@ -125,9 +134,9 @@ namespace app {
     m_cachefile{cachepath} {
     char buf[6];
     m_cachefile.read(buf, 6);
-    if(strcmp(buf, Package::MAGIC_NUMBER) != 0) {
+    if(strncmp(buf, Package::MAGIC_NUMBER, sizeof(buf)) != 0) {
       WARNING("File '{}' isn't a cache", m_cachefile.filepath().string());
-      return;
+      return; 
     }
     
     unsigned flags;
@@ -160,7 +169,7 @@ namespace app {
   }
 
   bool UninstallPackage::processDirectory(const fs::path& dirpath) {
-    // Nothing to do
+    m_disposeDirs.push(dirpath);
     return true;
   }
 
@@ -168,7 +177,16 @@ namespace app {
     auto f = m_cachefile.filepath();
     m_cachefile.close();
 
-    fs::remove_all(m_info.outputDir);
+    for(fs::path p; !m_disposeDirs.empty(); m_disposeDirs.pop()) {
+      p = m_disposeDirs.top();
+      VERBOSE("Deleting directory located in '{}'", p.string());
+      if(std::error_code e; fs::remove(p, e), e) {
+        WARNING("Failed to delete directory '{}': {}", p.string(), e.message());
+      }
+    }
+
+    if(std::error_code e; !fs::remove(m_info.outputDir, e))
+      WARNING("Directory '{}' isn't empty", m_info.outputDir.string());
     fs::remove(f);
   }
 } // namespace app

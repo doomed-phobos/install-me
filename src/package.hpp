@@ -35,6 +35,7 @@ namespace app {
     
     PackageInfo m_info;
   private:
+    bool m_shouldStop{};
     ThreadPool m_pool;
     std::mutex m_mtx;
     std::promise<bool> m_promise;
@@ -73,5 +74,6 @@ namespace app {
 
     std::queue<fs::path> m_dirs;
     utils::File m_cachefile;
+    std::priority_queue<fs::path> m_disposeDirs;
   };
 } // namespace app

@@ -23,7 +23,11 @@ namespace app {
         job = m_jobs.front();
         m_jobs.pop();
       }
-      job();
+      try {
+        job();
+      } catch(...) {
+        break;
+      }
     }
   }
 
